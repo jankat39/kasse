@@ -55,7 +55,8 @@ main{padding:12px max(2vw,12px) 24px}
 .tile b{font-size:17px;line-height:1.2;font-weight:800;hyphens:auto;-webkit-hyphens:auto;overflow-wrap:break-word}
 .tile .p{display:flex;justify-content:space-between;align-items:end;gap:6px;margin-top:8px}
 .tile .p span:first-child{color:var(--gold);font-weight:800;font-size:18px}
-.tile small{font-size:12px;color:var(--mut)}
+.tile small{font-size:12px;color:var(--mut);white-space:nowrap}
+.tile .p{flex-wrap:wrap;row-gap:2px}
 .tile .q{position:absolute;top:-6px;right:-6px;min-width:30px;height:30px;border-radius:15px;background:var(--red2);color:#fff;font-weight:800;display:grid;place-items:center;padding:0 8px;box-shadow:0 2px 6px #0008}
 .tile .warn{color:var(--gold);font-size:12px}
 .ret{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}
@@ -166,6 +167,15 @@ tr.fr td:nth-child(4){color:var(--gold)}
 .hv{font-size:14px;font-weight:700}
 .htop{font-size:13px;color:var(--mut)}
 @media(max-width:600px){.hr{grid-template-columns:74px minmax(0,1fr)}}
+.tile.grp .vc{font-size:13px;color:var(--mut);font-weight:700;margin-top:2px}
+.vars{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0 14px}
+.var{position:relative;font:inherit;text-align:left;border:0;border-radius:16px;background:var(--tile);color:var(--ink);min-height:92px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;cursor:pointer;box-shadow:0 3px 0 #0006}
+.var:active{transform:translateY(2px)}
+.var b{font-size:19px;line-height:1.2}.var .num{color:var(--gold);font-weight:800;font-size:18px;white-space:normal}.var small{color:var(--mut);font-size:12px;font-weight:600}
+.var.heiss{background:#4a2723}.var.frei{background:#24443a}.var.poff{background:#3f3626}.var.herz{background:#45301f}
+.var .q{position:absolute;top:-6px;right:-6px;min-width:28px;height:28px;border-radius:14px;background:var(--red2);color:#fff;font-weight:800;display:grid;place-items:center;padding:0 8px}
+.vclose{width:100%;background:transparent;border:1px solid var(--line)}
+.modal{max-height:calc(100vh - 32px);overflow:auto}
 /* Preise */
 .ptab input,.ptab select{font:inherit;font-size:16px;background:var(--tile);color:var(--ink);border:1px solid var(--line);border-radius:10px;min-height:44px;padding:0 10px;width:100%}
 .ptab .pr{max-width:110px;text-align:right}
@@ -231,24 +241,24 @@ const DEF={
   cats:[{id:'heiss',n:'Heißgetränke'},{id:'schnaps',n:'Feuerwasser'},{id:'frei',n:'Alkoholfrei'},{id:'poff',n:'Poffertjes (12 Stück)'},{id:'herz',n:'Herzhaft'}],
   items:[
     {id:'aperol',n:'Hot Aperol',cat:'heiss',p:450,pf:'tasse'},
-    {id:'lum_s',n:'Lumumba mit Sahne',cat:'heiss',p:400,pf:'tasse',chk:1},
-    {id:'lum_o',n:'Lumumba ohne Sahne',cat:'heiss',p:350,pf:'tasse',chk:1},
+    {id:'lum_s',n:'Lumumba mit Sahne',cat:'heiss',p:400,pf:'tasse',chk:1,g:'Lumumba',vn:'Mit Sahne'},
+    {id:'lum_o',n:'Lumumba ohne Sahne',cat:'heiss',p:350,pf:'tasse',chk:1,g:'Lumumba',vn:'Ohne Sahne'},
     {id:'apfel',n:'Heißer Apfelwein',cat:'heiss',p:300,pf:'tasse'},
-    {id:'gluh',n:'Glühwein',cat:'heiss',p:300,pf:'tasse'},
-    {id:'gluh_s',n:'Glühwein mit Schuss',cat:'heiss',p:400,pf:'tasse'},
+    {id:'gluh',n:'Glühwein',cat:'heiss',p:300,pf:'tasse',g:'Glühwein',vn:'Ohne Schuss'},
+    {id:'gluh_s',n:'Glühwein mit Schuss',cat:'heiss',p:400,pf:'tasse',g:'Glühwein',vn:'Mit Schuss'},
     {id:'birne',n:'Williams Birne',cat:'schnaps',p:200,pf:''},
     {id:'frang',n:'Frangelico Nusslikör',cat:'schnaps',p:200,pf:''},
     {id:'brett',n:'Schnapsbrett (10 Stück)',cat:'schnaps',p:1600,pf:'brett'},
     {id:'eier',n:'Eierlikör im Waffelbecher',cat:'schnaps',p:200,pf:'',chk:1},
     {id:'punsch',n:'Kinderpunsch',cat:'frei',p:250,pf:'tasse'},
-    {id:'scho_s',n:'Heiße Schokolade mit Sahne',cat:'frei',p:300,pf:'tasse',chk:1},
-    {id:'scho_o',n:'Heiße Schokolade ohne Sahne',cat:'frei',p:300,pf:'tasse'},
+    {id:'scho_s',n:'Heiße Schokolade mit Sahne',cat:'frei',p:300,pf:'tasse',chk:1,g:'Heiße Schokolade',vn:'Mit Sahne'},
+    {id:'scho_o',n:'Heiße Schokolade ohne Sahne',cat:'frei',p:300,pf:'tasse',g:'Heiße Schokolade',vn:'Ohne Sahne'},
     {id:'wasser',n:'Wasser spritzig 0,33 l',cat:'frei',p:200,pf:'flasche'},
-    {id:'pof_pz',n:'Poffertjes Puderzucker',cat:'poff',p:400,pf:''},
-    {id:'pof_sm',n:'Poffertjes Sahne & Smarties',cat:'poff',p:450,pf:''},
-    {id:'pof_st',n:'Poffertjes Sahne & Schokostreusel',cat:'poff',p:450,pf:''},
-    {id:'pof_ss',n:'Poffertjes Schokosauce',cat:'poff',p:450,pf:''},
-    {id:'pof_el',n:'Poffertjes Eierlikör',cat:'poff',p:500,pf:'',chk:1},
+    {id:'pof_pz',n:'Poffertjes Puderzucker',cat:'poff',p:400,pf:'',g:'Poffertjes',vn:'Puderzucker'},
+    {id:'pof_sm',n:'Poffertjes Sahne & Smarties',cat:'poff',p:450,pf:'',g:'Poffertjes',vn:'Sahne & Smarties'},
+    {id:'pof_st',n:'Poffertjes Sahne & Schokostreusel',cat:'poff',p:450,pf:'',g:'Poffertjes',vn:'Sahne & Schokostreusel'},
+    {id:'pof_ss',n:'Poffertjes Schokosauce',cat:'poff',p:450,pf:'',g:'Poffertjes',vn:'Schokosauce'},
+    {id:'pof_el',n:'Poffertjes Eierlikör',cat:'poff',p:500,pf:'',chk:1,g:'Poffertjes',vn:'Eierlikör'},
     {id:'gulasch',n:'Rindergulaschsuppe mit Bierbrot',cat:'herz',p:600,pf:''}
   ]};
 const clone=o=>JSON.parse(JSON.stringify(o));
@@ -280,6 +290,7 @@ const upd=r=>r.u||r.ts||0;
 function load(){try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){if(s.menu&&s.menu.items)menu=s.menu;sales=s.sales||{};menuU=s.menuU||0;lastSync=s.lastSync||0;hintOff=!!s.hintOff;freePf=!!s.freePf;pending=new Set(s.pending||[])}}catch(e){}}
 function save(){try{localStorage.setItem(LS,JSON.stringify({menu,menuU,sales,lastSync,hintOff,freePf,pending:[...pending]}))}catch(e){toast('Speichern fehlgeschlagen – Speicher voll?')}}
 const item=id=>menu.items.find(i=>i.id===id);
+function migrate(m){if(!m||!Array.isArray(m.items))return m;for(const it of m.items){if(it.g!==undefined)continue;const d=DEF.items.find(x=>x.id===it.id);if(d&&d.g){it.g=d.g;it.vn=d.vn}}return m}
 function store(rec){sales[rec.id]=rec;pending.add(rec.id)}
 
 function calc(){
@@ -293,8 +304,13 @@ function calc(){
 function renderMenu(){
   const F=isF(),c=cart();
   $('menu').innerHTML=(F?`<div class="fbanner"><b>Ausgeben</b> – die Getränke werden nicht kassiert. Artikel antippen, dann rechts wählen, wer ausgibt. Pfand kannst du rechts trotzdem kassieren. Abgerechnet wird später in der Auswertung.</div>`:'')+menu.cats.map(ct=>{
-    const its=menu.items.filter(i=>i.cat===ct.id);if(!its.length)return'';
-    return`<div class="cat"><h2>${esc(ct.n)}</h2><div class="tiles">${its.map(i=>{const q=c.l[i.id]||0;
+    const its=menu.items.filter(i=>i.cat===ct.id);if(!its.length)return'';const seen=new Set();
+    return`<div class="cat"><h2>${esc(ct.n)}</h2><div class="tiles">${its.map(i=>{
+      const grp=i.g?its.filter(x=>x.g===i.g):[i];
+      if(grp.length>1){if(seen.has(i.g))return'';seen.add(i.g);
+        const ps=grp.map(x=>x.p),lo=Math.min(...ps),hi=Math.max(...ps),q=grp.reduce((a,x)=>a+(c.l[x.id]||0),0),pf=grp.find(x=>x.pf);
+        return`<button class="tile grp ${esc(i.cat)}" data-grp="${esc(i.g)}"><b>${esc(i.g)}</b><span class="vc">${grp.length} Sorten ▸</span><span class="p"><span class="num">${lo===hi?fmt(lo):'ab '+fmt(lo)}</span>${pf&&(!F||freePf)?`<small>+ ${esc(pl(pf.pf))}</small>`:''}</span>${q?`<span class="q">${q}</span>`:''}</button>`}
+      const q=c.l[i.id]||0;
       return`<button class="tile ${esc(i.cat)}" data-add="${esc(i.id)}"><b>${esc(i.n)}</b>${i.chk&&!F?'<span class="warn">Preis prüfen</span>':''}<span class="p"><span class="num">${fmt(i.p)}</span>${i.pf&&(!F||freePf)?`<small>+ ${esc(pl(i.pf))}</small>`:''}</span>${q?`<span class="q">${q}</span>`:''}</button>`}).join('')}</div></div>`}).join('');
 }
 function renderCart(){
@@ -360,6 +376,9 @@ function openCard(){const c=calc();if(c.empty||c.total<=0)return;payMode='karte'
   $('ov').classList.add('on');
 }
 function updGiven(){const gv=$('gv');if(!gv)return;const t=calc().total;gv.textContent=given?fmt(given):'–';$('rg').textContent=given?(given>=t?fmt(given-t):'fehlt '+fmt(t-given)):'–'}
+function openVar(g){const c=cart(),F=isF(),its=menu.items.filter(x=>x.g===g);if(!its.length)return;
+  $('modal').innerHTML=`<h2>${esc(g)}</h2><p class="note">Sorte antippen – kommt direkt auf den Bon.</p><div class="vars">${its.map(x=>{const q=c.l[x.id]||0;return`<button class="var ${esc(x.cat)}" data-addv="${esc(x.id)}"><b>${esc(x.vn||x.n)}</b><span class="num">${fmt(x.p)}${x.pf&&(!F||freePf)?` <small>+ ${esc(pl(x.pf))}</small>`:''}</span>${q?`<span class="q">${q}</span>`:''}</button>`}).join('')}</div><button class="btn vclose" data-close>Abbrechen</button>`;
+  $('ov').classList.add('on');}
 function closeModal(){$('ov').classList.remove('on');payMode=null}
 
 function setView(v){view=v;hist=[];document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-current',x.dataset.v===view));
@@ -369,6 +388,8 @@ function setView(v){view=v;hist=[];document.querySelectorAll('nav button').forEa
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const d=b.dataset;
   if(d.v){setView(d.v);return}
+  if(d.grp){openVar(d.grp);return}
+  if(d.addv){const c=cart();c.l[d.addv]=(c.l[d.addv]||0)+1;hist.push(['l',d.addv]);closeModal();renderKasse();return}
   if(d.add){const c=cart();c.l[d.add]=(c.l[d.add]||0)+1;hist.push(['l',d.add]);renderKasse();return}
   if(d.dec){decL(d.dec);renderKasse();return}
   if(d.rm){delete cart().l[d.rm];renderKasse();return}
@@ -402,6 +423,7 @@ document.addEventListener('click',e=>{
   if('defp' in d){menu=clone(DEF);renderPreise();return}
 });
 document.addEventListener('change',e=>{if(e.target.id!=='impf'||!e.target.files[0])return;const fr=new FileReader();fr.onload=()=>mergeIn(String(fr.result||''));fr.readAsText(e.target.files[0]);e.target.value='';});
+$('ov').addEventListener('click',e=>{if(e.target.id==='ov')closeModal()});
 $('mobgo').onclick=()=>$('cart').scrollIntoView({behavior:'smooth',block:'start'});
 
 /* Ausgegeben: Abrechnung pro Person */
@@ -518,8 +540,8 @@ function renderPreise(){
   const pfO=v=>`<option value="">kein Pfand</option>`+PFK.map(k=>`<option value="${k}" ${k===v?'selected':''}>${esc(pl(k))}</option>`).join('');
   $('v-preise').innerHTML=`<div class="card ptab"><h2>Wer darf ausgeben?</h2><p class="note">Namen mit Komma trennen. Erscheinen im Reiter „Ausgeben“ als Knöpfe.</p><input id="ppl" value="${esc(people().join(', '))}" aria-label="Namen"></div>
   <div class="card ptab"><h2>Pfand</h2><table><tbody>${PFK.map(k=>`<tr><td>${esc(pl(k))}</td><td><input class="pr" inputmode="decimal" data-pfv="${k}" value="${(menu.pfand[k].v/100).toFixed(2).replace('.',',')}"></td></tr>`).join('')}</tbody></table></div>
-  <div class="card ptab"><h2>Artikel &amp; Preise</h2><p class="note"><span class="flag">Gelb markiert</span> = Preis stand nicht auf der Tafel, bitte prüfen. Speichern entfernt die Markierung. Geänderte Preise gehen beim nächsten Abgleich mit auf die anderen Geräte.</p>
-  <table class="stack"><thead><tr><th>Name</th><th>Preis €</th><th>Pfand</th><th>Gruppe</th><th></th></tr></thead><tbody>${menu.items.map(i=>`<tr data-id="${esc(i.id)}"><td data-l="Name"><input data-f="n" value="${esc(i.n)}"></td><td data-l="Preis €"><input class="pr" data-f="p" inputmode="decimal" value="${(i.p/100).toFixed(2).replace('.',',')}" ${i.chk?'style="border-color:var(--gold);color:var(--gold)"':''}></td><td data-l="Pfand"><select data-f="pf">${pfO(i.pf)}</select></td><td data-l="Gruppe"><select data-f="cat">${catO(i.cat)}</select></td><td><button class="btn sm danger" data-del="${esc(i.id)}">Entfernen</button></td></tr>`).join('')}</tbody></table>
+  <div class="card ptab"><h2>Artikel &amp; Preise</h2><p class="note"><span class="flag">Gelb markiert</span> = Preis stand nicht auf der Tafel, bitte prüfen. Speichern entfernt die Markierung. Geänderte Preise gehen beim nächsten Abgleich mit auf die anderen Geräte.<br><b>Kachel:</b> Artikel mit gleichem Kachel-Namen werden zu einer Kachel mit Sorten-Auswahl zusammengefasst (z. B. „Poffertjes“). Leer lassen = eigene Kachel. <b>Sorte:</b> der Text im Auswahlfenster.</p>
+  <table class="stack"><thead><tr><th>Name</th><th>Preis €</th><th>Pfand</th><th>Kategorie</th><th>Kachel</th><th>Sorte</th><th></th></tr></thead><tbody>${menu.items.map(i=>`<tr data-id="${esc(i.id)}"><td data-l="Name"><input data-f="n" value="${esc(i.n)}"></td><td data-l="Preis €"><input class="pr" data-f="p" inputmode="decimal" value="${(i.p/100).toFixed(2).replace('.',',')}" ${i.chk?'style="border-color:var(--gold);color:var(--gold)"':''}></td><td data-l="Pfand"><select data-f="pf">${pfO(i.pf)}</select></td><td data-l="Kategorie"><select data-f="cat">${catO(i.cat)}</select></td><td data-l="Kachel"><input data-f="g" value="${esc(i.g||'')}" placeholder="eigene Kachel"></td><td data-l="Sorte"><input data-f="vn" value="${esc(i.vn||'')}" placeholder="–"></td><td><button class="btn sm danger" data-del="${esc(i.id)}">Entfernen</button></td></tr>`).join('')}</tbody></table>
   <div class="tools" style="margin-top:12px"><button class="btn" data-addi>+ Artikel</button><button class="btn" style="background:var(--pine);color:#fff" data-savep>Speichern</button><button class="btn" data-defp>Standard laden</button></div></div>`;
 }
 const num=v=>Math.round(parseFloat(String(v).replace(',','.'))*100)||0;
@@ -534,7 +556,7 @@ async function savePrices(b){
 
 function renderAll(){if(view==='kasse'||view==='frei')renderKasse();if(view==='stats')renderStats();if(view==='preise'&&!document.activeElement?.closest('#v-preise'))renderPreise();if(view!=='kasse'&&view!=='frei')renderCart()}
 
-load();renderKasse();setSync();
+load();migrate(menu);renderKasse();setSync();
 if(!inFrame&&!STANDALONE&&!hintOff&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document)$('hint').hidden=false;
 if(!inFrame&&'serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist().catch(()=>{})}catch(e){}
@@ -549,7 +571,7 @@ try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist().ca
     for(const ch of snap.docChanges())if(ch.type==='removed'&&!pending.has(ch.doc.id))delete sales[ch.doc.id];
     save();setSync();if(view!=='kasse'&&view!=='frei')renderAll();flush();
   },()=>{online=false;setSync()});
-  db.doc('config/menu').onSnapshot(s=>{if(s.exists){const m=s.data();if(m&&Array.isArray(m.items)){menu=clone(m);save();renderAll()}}},()=>{});
+  db.doc('config/menu').onSnapshot(s=>{if(s.exists){const m=s.data();if(m&&Array.isArray(m.items)){menu=migrate(clone(m));save();renderAll()}}},()=>{});
   flush();
 })();
 }
