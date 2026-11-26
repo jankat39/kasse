@@ -1,5 +1,5 @@
 // Offline-Cache für die Kasse. Bei jedem Update die Versionsnummer erhöhen.
-const V = 'wmkasse-v9';
+const V = 'wmkasse-v10';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png', './jspdf.umd.min.js', './jspdf.plugin.autotable.min.js'];
 
 self.addEventListener('install', e => {

@@ -22,6 +22,7 @@
    LAYOUT: iPad landscape = tiles left, receipt right; phone = stacked with sticky total bar. */
 :root{color-scheme:dark;--bg:#1d2224;--board:#262d2f;--tile:#313a3c;--tile2:#3a4547;--ink:#f3f1ea;--mut:#a9b2ad;--line:#46514f;--red:#c9402f;--red2:#e0573f;--pine:#2f6b4f;--pine2:#3d8a66;--gold:#f0c35a}
 *{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 Nunito,system-ui,sans-serif;overflow-x:clip;-webkit-user-select:none;user-select:none;padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
 input,select,textarea{-webkit-user-select:text;user-select:text}
@@ -170,7 +171,7 @@ tr.fr td:nth-child(4){color:var(--gold)}
 .tile.grp .vc{font-size:13px;color:var(--mut);font-weight:700;margin-top:2px}
 .vars{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0 14px}
 .var{position:relative;font:inherit;text-align:left;border:0;border-radius:16px;background:var(--tile);color:var(--ink);min-height:92px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;gap:8px;cursor:pointer;box-shadow:0 3px 0 #0006}
-.var:active{transform:translateY(2px)}
+.var:active{transform:translateY(2px);filter:brightness(1.25)}
 .var b{font-size:19px;line-height:1.2}.var .num{color:var(--gold);font-weight:800;font-size:18px;white-space:normal}.var small{color:var(--mut);font-size:12px;font-weight:600}
 .var.heiss{background:#4a2723}.var.frei{background:#24443a}.var.poff{background:#3f3626}.var.herz{background:#45301f}
 .var .q{position:absolute;top:-6px;right:-6px;min-width:28px;height:28px;border-radius:14px;background:var(--red2);color:#fff;font-weight:800;display:grid;place-items:center;padding:0 8px}
@@ -181,8 +182,10 @@ tr.fr td:nth-child(4){color:var(--gold)}
 .imp td{background:#22324a}.imp td:first-child{box-shadow:inset 4px 0 0 #6aa2ff}
 .ib{display:inline-block;font-size:12px;font-weight:800;color:#0e1a2c;background:#8cb8ff;border-radius:8px;padding:1px 7px;vertical-align:1px;white-space:nowrap}
 .repov{position:fixed;inset:0;background:#000c;z-index:25;display:flex;flex-direction:column}
-.repbar{display:flex;gap:8px;align-items:center;padding:max(10px,env(safe-area-inset-top)) 14px 10px;background:var(--board);border-bottom:1px solid var(--line)}
+.repbar{display:flex;gap:8px;align-items:center;padding:calc(env(safe-area-inset-top) + 28px) 14px 12px;background:var(--board);border-bottom:1px solid var(--line)}
 .repbar b{flex:1;font-size:17px}
+.repbar .btn{min-height:48px;padding:0 20px}
+.repend{display:flex;gap:10px;justify-content:center;max-width:820px;margin:16px auto 40px}.repend .btn{min-height:56px;flex:1;max-width:300px}
 .repscroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px}
 .paper{background:#fff;color:#111;max-width:820px;margin:0 auto;border-radius:6px;padding:28px 30px;font:14px/1.4 Helvetica,Arial,sans-serif;-webkit-user-select:text;user-select:text}
 .paper h1{font:700 24px Helvetica,Arial,sans-serif;margin:0 0 4px}.paper .sub{color:#666;margin:0 0 16px}
@@ -397,10 +400,12 @@ function openCard(){const c=calc();if(c.empty||c.total<=0)return;payMode='karte'
   $('ov').classList.add('on');
 }
 function updGiven(){const gv=$('gv');if(!gv)return;const t=calc().total;gv.textContent=given?fmt(given):'–';$('rg').textContent=given?(given>=t?fmt(given-t):'fehlt '+fmt(t-given)):'–'}
-function openVar(g){const c=cart(),F=isF(),its=menu.items.filter(x=>x.g===g);if(!its.length)return;
-  $('modal').innerHTML=`<h2>${esc(g)}</h2><p class="note">Sorte antippen – kommt direkt auf den Bon.</p><div class="vars">${its.map(x=>{const q=c.l[x.id]||0;return`<button class="var ${esc(x.cat)}" data-addv="${esc(x.id)}"><b>${esc(x.vn||x.n)}</b><span class="num">${fmt(x.p)}${x.pf&&(!F||freePf)?` <small>+ ${esc(pl(x.pf))}</small>`:''}</span>${q?`<span class="q">${q}</span>`:''}</button>`}).join('')}</div><button class="btn vclose" data-close>Abbrechen</button>`;
+let varT=0;
+function armVarClose(){clearTimeout(varT);varT=setTimeout(()=>{if($('vars'))closeModal()},1800)}
+function openVar(g,keep){if(!keep)clearTimeout(varT);const c=cart(),F=isF(),its=menu.items.filter(x=>x.g===g);if(!its.length)return;
+  $('modal').innerHTML=`<h2>${esc(g)}</h2><p class="note">Antippen legt die Sorte auf den Bon – mehrfach tippen für mehrere. Schließt sich kurz nach dem letzten Tipp von selbst.</p><div class="vars" id="vars">${its.map(x=>{const q=c.l[x.id]||0;return`<button class="var ${esc(x.cat)}" data-addv="${esc(x.id)}"><b>${esc(x.vn||x.n)}</b><span class="num">${fmt(x.p)}${x.pf&&(!F||freePf)?` <small>+ ${esc(pl(x.pf))}</small>`:''}</span>${q?`<span class="q">${q}</span>`:''}</button>`}).join('')}</div><button class="btn vclose" data-close>Fertig</button>`;
   $('ov').classList.add('on');}
-function closeModal(){$('ov').classList.remove('on');payMode=null}
+function closeModal(){clearTimeout(varT);$('ov').classList.remove('on');payMode=null}
 
 function setView(v){view=v;hist=[];document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-current',x.dataset.v===view));
   const sec=v==='frei'?'kasse':v;document.querySelectorAll('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+sec));
@@ -411,9 +416,9 @@ document.addEventListener('click',e=>{
   if(d.v){setView(d.v);return}
   if(d.grp){openVar(d.grp);return}
   if('pdf' in d){makePdf(b);return}
-  if('repclose' in d){$('repov').hidden=true;return}
+  if('repclose' in d){closeReport();return}
   if('sharepdf' in d){sharePdf();return}
-  if(d.addv){const c=cart();c.l[d.addv]=(c.l[d.addv]||0)+1;hist.push(['l',d.addv]);closeModal();renderKasse();return}
+  if(d.addv){const c=cart();c.l[d.addv]=(c.l[d.addv]||0)+1;hist.push(['l',d.addv]);renderKasse();const it=item(d.addv);if(it&&it.g)openVar(it.g,true);armVarClose();return}
   if(d.add){const c=cart();c.l[d.add]=(c.l[d.add]||0)+1;hist.push(['l',d.add]);renderKasse();return}
   if(d.dec){decL(d.dec);renderKasse();return}
   if(d.rm){delete cart().l[d.rm];renderKasse();return}
@@ -521,8 +526,12 @@ function makePdf(b){const d=reportData();
     <h3>Ausgegeben – Abrechnung pro Person (alle Tage)</h3>${t(['Person','Offen','Bezahlt','Offene Artikel'],d.persons,[1,2])}
     ${d.hours.length?`<h3>Pro Stunde</h3>${t(['Stunde','Verkäufe','Umsatz','Ausgegeben'],d.hours,[1,2,3])}`:''}</div>`;
   let ov=$('repov');if(!ov){ov=document.createElement('div');ov.id='repov';ov.className='repov';document.body.appendChild(ov)}
-  ov.innerHTML=`<div class="repbar"><button class="btn" data-repclose>Schließen</button><b>Kassenbericht</b>${inFrame?'':'<button class="btn pdfb" data-sharepdf>Als PDF teilen</button>'}</div><div class="repscroll">${html}</div>`;
+  ov.innerHTML=`<div class="repbar"><button class="btn" data-repclose>✕ Schließen</button><b>Kassenbericht</b>${inFrame?'':'<button class="btn pdfb" data-sharepdf>Als PDF teilen</button>'}</div><div class="repscroll">${html}<div class="repend"><button class="btn" data-repclose>Schließen</button>${inFrame?'':'<button class="btn pdfb" data-sharepdf>Als PDF teilen</button>'}</div></div>`;
+  ov.querySelectorAll('[data-repclose]').forEach(x=>x.onclick=ev=>{ev.stopPropagation();closeReport()});
+  ov.querySelectorAll('[data-sharepdf]').forEach(x=>x.onclick=ev=>{ev.stopPropagation();sharePdf()});
   ov.hidden=false;getPdf().catch(()=>{});}
+function closeReport(){const ov=$('repov');if(ov){ov.hidden=true;ov.innerHTML=''}}
+addEventListener('keydown',e=>{if(e.key==='Escape')closeReport()});
 async function sharePdf(){const btn=document.querySelector('[data-sharepdf]');try{
   if(btn){btn.textContent='Erstelle PDF …';btn.disabled=true}
   const J=await getPdf(),d=reportData(),doc=new J({unit:'mm',format:'a4'});
