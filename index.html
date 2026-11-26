@@ -176,6 +176,8 @@ tr.fr td:nth-child(4){color:var(--gold)}
 .var .q{position:absolute;top:-6px;right:-6px;min-width:28px;height:28px;border-radius:14px;background:var(--red2);color:#fff;font-weight:800;display:grid;place-items:center;padding:0 8px}
 .vclose{width:100%;background:transparent;border:1px solid var(--line)}
 .modal{max-height:calc(100vh - 32px);overflow:auto}
+.catrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));column-gap:10px;align-items:end}
+.pdfb{background:var(--gold);color:#1d2224;border-radius:22px}
 /* Preise */
 .ptab input,.ptab select{font:inherit;font-size:16px;background:var(--tile);color:var(--ink);border:1px solid var(--line);border-radius:10px;min-height:44px;padding:0 10px;width:100%}
 .ptab .pr{max-width:110px;text-align:right}
@@ -301,17 +303,22 @@ function calc(){
   return{lines,pfOut,pfIn,sub,pf,total:sub+pf,empty:!lines.length&&!PFK.some(k=>pfIn[k])};
 }
 
-function renderMenu(){
-  const F=isF(),c=cart();
-  $('menu').innerHTML=(F?`<div class="fbanner"><b>Ausgeben</b> – die Getränke werden nicht kassiert. Artikel antippen, dann rechts wählen, wer ausgibt. Pfand kannst du rechts trotzdem kassieren. Abgerechnet wird später in der Auswertung.</div>`:'')+menu.cats.map(ct=>{
-    const its=menu.items.filter(i=>i.cat===ct.id);if(!its.length)return'';const seen=new Set();
-    return`<div class="cat"><h2>${esc(ct.n)}</h2><div class="tiles">${its.map(i=>{
+function tileHtml(i,its,seen,c,F){
       const grp=i.g?its.filter(x=>x.g===i.g):[i];
       if(grp.length>1){if(seen.has(i.g))return'';seen.add(i.g);
         const ps=grp.map(x=>x.p),lo=Math.min(...ps),hi=Math.max(...ps),q=grp.reduce((a,x)=>a+(c.l[x.id]||0),0),pf=grp.find(x=>x.pf);
         return`<button class="tile grp ${esc(i.cat)}" data-grp="${esc(i.g)}"><b>${esc(i.g)}</b><span class="vc">${grp.length} Sorten ▸</span><span class="p"><span class="num">${lo===hi?fmt(lo):'ab '+fmt(lo)}</span>${pf&&(!F||freePf)?`<small>+ ${esc(pl(pf.pf))}</small>`:''}</span>${q?`<span class="q">${q}</span>`:''}</button>`}
       const q=c.l[i.id]||0;
-      return`<button class="tile ${esc(i.cat)}" data-add="${esc(i.id)}"><b>${esc(i.n)}</b>${i.chk&&!F?'<span class="warn">Preis prüfen</span>':''}<span class="p"><span class="num">${fmt(i.p)}</span>${i.pf&&(!F||freePf)?`<small>+ ${esc(pl(i.pf))}</small>`:''}</span>${q?`<span class="q">${q}</span>`:''}</button>`}).join('')}</div></div>`}).join('');
+      return`<button class="tile ${esc(i.cat)}" data-add="${esc(i.id)}"><b>${esc(i.n)}</b>${i.chk&&!F?'<span class="warn">Preis prüfen</span>':''}<span class="p"><span class="num">${fmt(i.p)}</span>${i.pf&&(!F||freePf)?`<small>+ ${esc(pl(i.pf))}</small>`:''}</span>${q?`<span class="q">${q}</span>`:''}</button>`}
+const catHtml=(b,span)=>`<div class="cat"${span?` style="grid-column:span ${span}"`:''}><h2>${esc(b.ct.n)}</h2><div class="tiles"${span?` style="grid-template-columns:repeat(${span},minmax(0,1fr))"`:''}>${b.t.join('')}</div></div>`;
+function renderMenu(){
+  const F=isF(),c=cart();
+  const blocks=menu.cats.map(ct=>{const its=menu.items.filter(i=>i.cat===ct.id),seen=new Set();return{ct,t:its.map(i=>tileHtml(i,its,seen,c,F)).filter(Boolean)}}).filter(b=>b.t.length);
+  let h='',row=[],rn=0;
+  const flush=()=>{if(row.length===1)h+=catHtml(row[0]);else if(row.length)h+=`<div class="catrow">${row.map(b=>catHtml(b,b.t.length)).join('')}</div>`;row=[];rn=0};
+  for(const b of blocks){const n=b.t.length;if(n<=2&&rn+n<=4){row.push(b);rn+=n}else{flush();if(n<=2){row.push(b);rn=n}else h+=catHtml(b)}}
+  flush();
+  $('menu').innerHTML=(F?`<div class="fbanner"><b>Ausgeben</b> – die Getränke werden nicht kassiert. Artikel antippen, dann rechts wählen, wer ausgibt. Pfand kannst du rechts trotzdem kassieren. Abgerechnet wird später in der Auswertung.</div>`:'')+h;
 }
 function renderCart(){
   const F=isF(),c=calc();
@@ -389,6 +396,8 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const d=b.dataset;
   if(d.v){setView(d.v);return}
   if(d.grp){openVar(d.grp);return}
+  if('pdf' in d){makePdf(b);return}
+  if('sharepdf' in d){sharePdf();return}
   if(d.addv){const c=cart();c.l[d.addv]=(c.l[d.addv]||0)+1;hist.push(['l',d.addv]);closeModal();renderKasse();return}
   if(d.add){const c=cart();c.l[d.add]=(c.l[d.add]||0)+1;hist.push(['l',d.add]);renderKasse();return}
   if(d.dec){decL(d.dec);renderKasse();return}
@@ -470,6 +479,48 @@ function mergeIn(txt){let o;try{o=JSON.parse(txt)}catch(e){toast('Das sind keine
   save();flush();setSync();renderAll();toast(`${add} neue, ${chg} geänderte Buchungen übernommen`);
 }
 
+/* PDF-Bericht */
+function loadScript(src){return new Promise((res,rej)=>{const el=document.createElement('script');el.src=src;el.onload=res;el.onerror=()=>{el.remove();rej(new Error(src))};document.head.appendChild(el)})}
+let pdfP=null,lastPdf=null;
+function getPdf(){if(!pdfP)pdfP=(async()=>{
+  if(!(window.jspdf&&window.jspdf.jsPDF)){try{await loadScript('jspdf.umd.min.js')}catch(e){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js')}}
+  if(!window.jspdf.jsPDF.API.autoTable){try{await loadScript('jspdf.plugin.autotable.min.js')}catch(e){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js')}}
+  return window.jspdf.jsPDF})().catch(e=>{pdfP=null;throw e});return pdfP}
+function hoursOf(recs){const H={};for(const r of recs){if(r.void)continue;const h=new Date(r.ts).getHours(),x=H[h]||(H[h]={h,sub:0,n:0,free:0});if(isFree(r))x.free+=r.sub;else{x.sub+=r.sub;x.n++}}return Object.values(H).sort((a,b)=>a.h-b.h)}
+async function makePdf(b){const old=b.textContent;b.textContent='Erstelle PDF …';b.disabled=true;
+  try{const J=await getPdf(),doc=new J({unit:'mm',format:'a4'}),P=c=>fmt(c).replace('−','-'),{s,recs}=stats(),fb=freeBy();
+    const title=dayF==='all'?'Alle Markttage':dayLbl(dayF),hl=h=>String(h).padStart(2,'0');
+    const pfNet=PFK.reduce((a,k)=>a+(s.out[k]-s.in[k])*menu.pfand[k].v,0);
+    doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('Geschwisterliebe – Kassenbericht',14,18);
+    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(90);doc.text(title+' · erstellt am '+new Date().toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'})+' Uhr',14,25);doc.setTextColor(0);
+    const O={theme:'grid',styles:{font:'helvetica',fontSize:9.5,cellPadding:2,lineColor:[200,200,200]},headStyles:{fillColor:[47,107,79],textColor:255},footStyles:{fillColor:[235,235,235],textColor:0,fontStyle:'bold'},margin:{left:14,right:14}};
+    const R={halign:'right'};let y=31;
+    const head=t=>{if(y>262){doc.addPage();y=18}doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text(t,14,y);y+=3};
+    const tbl=o=>{doc.autoTable({...O,startY:y,...o});y=doc.lastAutoTable.finalY+9};
+    tbl({head:[['Kennzahl','Betrag']],body:[['Umsatz (ohne Pfand)',P(s.sub)],['Anzahl Verkäufe',String(s.n)],['Bar eingenommen',P(s.bar)],['Karte',P(s.karte)],['Ausgegeben, noch offen',P(s.open)],['Pfand im Umlauf',P(pfNet)]],columnStyles:{1:R},tableWidth:110});
+    const ord=n=>{const i=menu.items.findIndex(x=>x.n===n);return i<0?999:i};
+    const its=Object.values(s.items).sort((a,b)=>ord(a.n)-ord(b.n)),tq=its.reduce((a,i)=>a+i.q,0),tf=its.reduce((a,i)=>a+i.f,0),tu=its.reduce((a,i)=>a+i.u,0);
+    head('Verkaufte Artikel');
+    tbl({head:[['Artikel','Menge','davon ausgegeben (offen)','Umsatz']],body:its.length?its.map(i=>[i.n,String(i.q),i.f?String(i.f):'',P(i.u)]):[['Noch nichts verkauft','','','']],foot:[['Summe',{content:String(tq),styles:R},{content:tf?String(tf):'',styles:R},{content:P(tu),styles:R}]],columnStyles:{1:R,2:R,3:R}});
+    head('Pfand');
+    tbl({head:[['','Raus','Zurück','Offen','Betrag']],body:PFK.map(k=>[menu.pfand[k].n,String(s.out[k]),String(s.in[k]),String(s.out[k]-s.in[k]),P((s.out[k]-s.in[k])*menu.pfand[k].v)]),columnStyles:{1:R,2:R,3:R,4:R}});
+    head('Ausgegeben – Abrechnung pro Person (alle Tage)');
+    tbl({head:[['Person','Offen','Bezahlt','Offene Artikel']],body:fb.map(p=>[p.n,P(p.open),P(p.paid),Object.entries(p.items).map(([n,q])=>q+'× '+n).join(', ')]),columnStyles:{1:R,2:R,3:{cellWidth:95}}});
+    const hrs=hoursOf(recs);
+    if(hrs.length){head('Pro Stunde');tbl({head:[['Stunde','Verkäufe','Umsatz','Ausgegeben']],body:hrs.map(x=>[hl(x.h)+'–'+hl(x.h+1)+' Uhr',String(x.n),P(x.sub),x.free?P(x.free):'']),columnStyles:{1:R,2:R,3:R},tableWidth:130})}
+    const np=doc.getNumberOfPages();for(let i=1;i<=np;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120);doc.text('Seite '+i+' von '+np,196,290,{align:'right'})}
+    const name='Kassenbericht-'+(dayF==='all'?'alle-Tage':dayF)+'.pdf';
+    lastPdf=new File([doc.output('blob')],name,{type:'application/pdf'});
+    await sharePdf();
+  }catch(e){toast('PDF konnte nicht erstellt werden')}
+  finally{b.textContent=old;b.disabled=false}}
+async function sharePdf(){const f=lastPdf;if(!f)return;
+  if(navigator.canShare&&navigator.canShare({files:[f]})){
+    try{await navigator.share({files:[f],title:f.name});closeModal();return}
+    catch(e){if(e&&e.name==='AbortError'){closeModal();return}
+      $('modal').innerHTML=`<h2>PDF ist fertig</h2><p class="note">Tippe auf „Teilen“, um den Bericht zu sichern, zu drucken oder per AirDrop zu senden.</p><div class="mact"><button class="btn" data-close>Schließen</button><button class="btn go" data-sharepdf>Teilen</button></div>`;$('ov').classList.add('on');return}}
+  const url=URL.createObjectURL(f),a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('PDF erstellt');}
+
 /* Auswertung */
 function stats(){
   const recs=Object.values(sales).filter(r=>dayF==='all'||r.day===dayF);
@@ -502,7 +553,8 @@ function renderStats(){
   const persons=fb.map(p=>{const it=Object.entries(p.items).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`${q}× ${esc(n)}`).join(', ');
     const bt=how=>{const on=arm===p.n+'|'+how;return`<button class="btn sm ${on?'armed':''}" data-settle="${esc(p.n)}" data-how="${how}" ${p.open?'':'disabled'}>${on?`Sicher? ${fmt(p.open)} ${how==='bar'?'bar':'Karte'}`:(how==='bar'?'Bezahlt bar':'Bezahlt Karte')}</button>`};
     return`<div class="person"><div class="ph"><b>${esc(p.n)}</b><span class="num">${fmt(p.open)}</span></div><p class="pi">${it||(p.paid?'Alles bezahlt.':'Noch nichts ausgegeben.')}</p>${p.paid?`<p class="pp">Schon bezahlt: <span class="num">${fmt(p.paid)}</span></p>`:''}<div class="tools">${bt('bar')}${bt('karte')}</div></div>`}).join('');
-  $('v-stats').innerHTML=`<div class="chips"><button data-day="all" aria-pressed="${dayF==='all'}">Alle Tage</button>${days.map(d=>`<button data-day="${esc(d)}" aria-pressed="${dayF===d}">${esc(dayLbl(d))}</button>`).join('')}</div>
+  getPdf().catch(()=>{});
+  $('v-stats').innerHTML=`<div class="chips">${inFrame?'':'<button class="btn pdfb" data-pdf>PDF-Bericht</button>'}<button data-day="all" aria-pressed="${dayF==='all'}">Alle Tage</button>${days.map(d=>`<button data-day="${esc(d)}" aria-pressed="${dayF===d}">${esc(dayLbl(d))}</button>`).join('')}</div>
   <div class="kpis"><div class="kpi hi"><span>Umsatz (ohne Pfand)</span><b class="num">${fmt(s.sub)}</b><small>${s.n} ${s.n===1?"Verkauf":"Verkäufe"}${s.freeV-s.open>0?', inkl. bezahlter Ausgaben':''}</small></div>
   <div class="kpi"><span>Bar eingenommen</span><b class="num">${fmt(s.bar)}</b><small>soll in der Kasse sein, plus Wechselgeld</small></div>
   <div class="kpi"><span>Karte</span><b class="num">${fmt(s.karte)}</b><small>inkl. Pfand</small></div>
