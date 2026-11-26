@@ -158,6 +158,14 @@ body.mode-frei nav button[aria-current=true]{background:var(--gold);color:#1d222
 .kpi.fk{border-color:#6b5a36;background:#3f3626}
 .fq{display:block;font-size:12px;color:var(--gold);font-weight:600}
 tr.fr td:nth-child(4){color:var(--gold)}
+.hours{display:grid;gap:8px}
+.hr{display:grid;grid-template-columns:96px minmax(0,1fr);gap:10px;align-items:start}
+.ht{font-weight:800;padding-top:2px}
+.hb{display:grid;gap:3px}
+.hbar{height:14px;border-radius:7px;background:var(--red);min-width:4px}
+.hv{font-size:14px;font-weight:700}
+.htop{font-size:13px;color:var(--mut)}
+@media(max-width:600px){.hr{grid-template-columns:74px minmax(0,1fr)}}
 /* Preise */
 .ptab input,.ptab select{font:inherit;font-size:16px;background:var(--tile);color:var(--ink);border:1px solid var(--line);border-radius:10px;min-height:44px;padding:0 10px;width:100%}
 .ptab .pr{max-width:110px;text-align:right}
@@ -458,6 +466,13 @@ function renderStats(){
   const pfRows=PFK.map(k=>{const out=s.out[k],inn=s.in[k];return`<tr><td>${esc(menu.pfand[k].n)}</td><td class="r num">${out}</td><td class="r num">${inn}</td><td class="r num"><b>${out-inn}</b></td><td class="r num">${fmt((out-inn)*menu.pfand[k].v)}</td></tr>`}).join('');
   const pfNet=PFK.reduce((a,k)=>a+(s.out[k]-s.in[k])*menu.pfand[k].v,0);
   const fb=freeBy(),openAll=fb.reduce((a,p)=>a+p.open,0);
+  const H={};for(const r of recs){if(r.void)continue;const h=new Date(r.ts).getHours(),x=H[h]||(H[h]={h,sub:0,n:0,free:0,items:{}});
+    if(isFree(r))x.free+=r.sub;else{x.sub+=r.sub;x.n++}for(const l of r.lines)x.items[l.n]=(x.items[l.n]||0)+l.q}
+  const hrs=Object.values(H).sort((a,b)=>a.h-b.h),hmax=Math.max(1,...hrs.map(x=>x.sub)),best=hrs.reduce((m,x)=>x.sub>(m?m.sub:-1)?x:m,null);
+  const hl=h=>String(h).padStart(2,'0');
+  const hourCard=hrs.length?`<div class="card"><h2>Pro Stunde</h2><p class="note">${dayF==='all'?'Alle Tage zusammengezählt.':'Nur '+esc(dayLbl(dayF))+'.'} Stärkste Stunde: <b>${hl(best.h)}–${hl(best.h+1)} Uhr</b> mit <b class="num">${fmt(best.sub)}</b>.</p>
+  <div class="hours">${hrs.map(x=>{const top=Object.entries(x.items).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>`${q}× ${esc(n)}`).join(', ');
+    return`<div class="hr"><span class="ht num">${hl(x.h)}–${hl(x.h+1)}</span><div class="hb"><div class="hbar" style="width:${(x.sub/hmax*100).toFixed(1)}%"></div><span class="hv num">${fmt(x.sub)} · ${x.n} ${x.n===1?'Verkauf':'Verkäufe'}${x.free?` · ${fmt(x.free)} ausgegeben`:''}</span><span class="htop">${top}</span></div></div>`}).join('')}</div></div>`:'';
   const payTxt=r=>isFree(r)?`${esc(r.by)} gibt aus${r.paid?' · bezahlt':''}`:(r.pay==='bar'?'Bar':'Karte');
   const list=recs.sort((a,b)=>b.ts-a.ts).slice(0,40).map(r=>{const t=new Date(r.ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     const what=[...r.lines.map(l=>`${l.q}× ${l.n}`),...PFK.filter(k=>r.pfIn?.[k]).map(k=>`${r.pfIn[k]}× ${menu.pfand[k].n} zurück`)].join(', ');
@@ -471,6 +486,7 @@ function renderStats(){
   <div class="kpi"><span>Karte</span><b class="num">${fmt(s.karte)}</b><small>inkl. Pfand</small></div>
   <div class="kpi fk"><span>Ausgegeben, offen</span><b class="num">${fmt(s.open)}</b><small>wird am Ende abgerechnet</small></div>
   <div class="kpi"><span>Pfand im Umlauf</span><b class="num">${fmt(pfNet)}</b><small>${s.out.tasse-s.in.tasse} Tassen noch draußen</small></div></div>
+  ${hourCard}
   <div class="card"><h2>Ausgegeben – Abrechnung</h2><p class="note">Über alle Markttage. Offen gesamt: <b class="num">${fmt(openAll)}</b>. Wenn jemand zahlt, auf „Bezahlt“ tippen und zur Sicherheit noch einmal bestätigen. Der Betrag zählt dann zum Umsatz.</p><div class="persons">${persons}</div></div>
   <div class="cols"><div class="card"><h2>Verkauft</h2>${its.length?`<table class="stack"><thead><tr><th>Artikel</th><th class="r">Menge</th><th class="r">Umsatz</th></tr></thead><tbody>${its.map(i=>`<tr><td>${esc(i.n)}<div class="barw" style="width:${(i.q/max*100).toFixed(1)}%"></div></td><td class="r num"><b>${i.q}</b>${i.f?`<small class="fq">davon ${i.f} ausgegeben</small>`:''}</td><td class="r num">${fmt(i.u)}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">Noch nichts verkauft.</p>'}</div>
   <div><div class="card"><h2>Pfand</h2><table class="stack"><thead><tr><th></th><th class="r">Raus</th><th class="r">Zurück</th><th class="r">Offen</th><th class="r">Betrag</th></tr></thead><tbody>${pfRows}</tbody></table></div>

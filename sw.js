@@ -1,5 +1,5 @@
 // Offline-Cache für die Kasse. Bei jedem Update die Versionsnummer erhöhen.
-const V = 'wmkasse-v4';
+const V = 'wmkasse-v5';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
