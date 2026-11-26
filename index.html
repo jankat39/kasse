@@ -251,7 +251,7 @@ tr.fr td:nth-child(4){color:var(--gold)}
 
 <script>
 {
-const LS='wmkasse-v1';
+const LS='wmkasse-v1',APPV='11';
 const DEF={
   people:['Kim','Marco','Sarah','Andrea'],
   pfand:{tasse:{n:'Tasse',v:200},brett:{n:'Brett',v:1000},flasche:{n:'Flasche',v:50}},
@@ -449,6 +449,7 @@ document.addEventListener('click',e=>{
   if(d.del){menu.items=menu.items.filter(i=>i.id!==d.del);renderPreise();return}
   if('addi' in d){menu.items.push({id:'x'+Date.now().toString(36),n:'Neuer Artikel',cat:menu.cats[0].id,p:0,pf:''});renderPreise();return}
   if('savep' in d){savePrices(b);return}
+  if('upd' in d){b.textContent='Prüfe …';(async()=>{try{const r=await navigator.serviceWorker?.getRegistration();if(r)await r.update()}catch(e){}location.reload()})();return}
   if('defp' in d){menu=clone(DEF);renderPreise();return}
 });
 document.addEventListener('change',e=>{if(e.target.id!=='impf'||!e.target.files[0])return;const fr=new FileReader();fr.onload=()=>mergeIn(String(fr.result||''));fr.readAsText(e.target.files[0]);e.target.value='';});
@@ -625,7 +626,8 @@ function renderPreise(){
   <div class="card ptab"><h2>Pfand</h2><table><tbody>${PFK.map(k=>`<tr><td>${esc(pl(k))}</td><td><input class="pr" inputmode="decimal" data-pfv="${k}" value="${(menu.pfand[k].v/100).toFixed(2).replace('.',',')}"></td></tr>`).join('')}</tbody></table></div>
   <div class="card ptab"><h2>Artikel &amp; Preise</h2><p class="note"><span class="flag">Gelb markiert</span> = Preis stand nicht auf der Tafel, bitte prüfen. Speichern entfernt die Markierung. Geänderte Preise gehen beim nächsten Abgleich mit auf die anderen Geräte.<br><b>Kachel:</b> Artikel mit gleichem Kachel-Namen werden zu einer Kachel mit Sorten-Auswahl zusammengefasst (z. B. „Poffertjes“). Leer lassen = eigene Kachel. <b>Sorte:</b> der Text im Auswahlfenster.</p>
   <table class="stack"><thead><tr><th>Name</th><th>Preis €</th><th>Pfand</th><th>Kategorie</th><th>Kachel</th><th>Sorte</th><th></th></tr></thead><tbody>${menu.items.map(i=>`<tr data-id="${esc(i.id)}"><td data-l="Name"><input data-f="n" value="${esc(i.n)}"></td><td data-l="Preis €"><input class="pr" data-f="p" inputmode="decimal" value="${(i.p/100).toFixed(2).replace('.',',')}" ${i.chk?'style="border-color:var(--gold);color:var(--gold)"':''}></td><td data-l="Pfand"><select data-f="pf">${pfO(i.pf)}</select></td><td data-l="Kategorie"><select data-f="cat">${catO(i.cat)}</select></td><td data-l="Kachel"><input data-f="g" value="${esc(i.g||'')}" placeholder="eigene Kachel"></td><td data-l="Sorte"><input data-f="vn" value="${esc(i.vn||'')}" placeholder="–"></td><td><button class="btn sm danger" data-del="${esc(i.id)}">Entfernen</button></td></tr>`).join('')}</tbody></table>
-  <div class="tools" style="margin-top:12px"><button class="btn" data-addi>+ Artikel</button><button class="btn" style="background:var(--pine);color:#fff" data-savep>Speichern</button><button class="btn" data-defp>Standard laden</button></div></div>`;
+  <div class="tools" style="margin-top:12px"><button class="btn" data-addi>+ Artikel</button><button class="btn" style="background:var(--pine);color:#fff" data-savep>Speichern</button><button class="btn" data-defp>Standard laden</button></div></div>
+  <div class="card"><h2>App</h2><p class="note">Version ${APPV}. Mit Internet holt sich die App neue Versionen automatisch beim Öffnen.</p><button class="btn" data-upd>Jetzt auf Update prüfen</button></div>`;
 }
 const num=v=>Math.round(parseFloat(String(v).replace(',','.'))*100)||0;
 async function savePrices(b){
