@@ -178,6 +178,18 @@ tr.fr td:nth-child(4){color:var(--gold)}
 .modal{max-height:calc(100vh - 32px);overflow:auto}
 .catrow{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));column-gap:10px;align-items:end}
 .pdfb{background:var(--gold);color:#1d2224;border-radius:22px}
+.imp td{background:#22324a}.imp td:first-child{box-shadow:inset 4px 0 0 #6aa2ff}
+.ib{display:inline-block;font-size:12px;font-weight:800;color:#0e1a2c;background:#8cb8ff;border-radius:8px;padding:1px 7px;vertical-align:1px;white-space:nowrap}
+.repov{position:fixed;inset:0;background:#000c;z-index:25;display:flex;flex-direction:column}
+.repbar{display:flex;gap:8px;align-items:center;padding:max(10px,env(safe-area-inset-top)) 14px 10px;background:var(--board);border-bottom:1px solid var(--line)}
+.repbar b{flex:1;font-size:17px}
+.repscroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px}
+.paper{background:#fff;color:#111;max-width:820px;margin:0 auto;border-radius:6px;padding:28px 30px;font:14px/1.4 Helvetica,Arial,sans-serif;-webkit-user-select:text;user-select:text}
+.paper h1{font:700 24px Helvetica,Arial,sans-serif;margin:0 0 4px}.paper .sub{color:#666;margin:0 0 16px}
+.paper h3{font:700 16px Helvetica,Arial,sans-serif;margin:18px 0 6px}
+.paper table{border-collapse:collapse;width:100%;font-size:13.5px}.paper th{background:#2f6b4f;color:#fff;text-align:left;font-weight:700;font-size:12.5px}
+.paper th,.paper td{border:1px solid #ccc;padding:5px 7px;color:#111}.paper td.r,.paper th.r{text-align:right}.paper tfoot td{background:#eee;font-weight:700}
+.paper .kp{max-width:420px}
 /* Preise */
 .ptab input,.ptab select{font:inherit;font-size:16px;background:var(--tile);color:var(--ink);border:1px solid var(--line);border-radius:10px;min-height:44px;padding:0 10px;width:100%}
 .ptab .pr{max-width:110px;text-align:right}
@@ -243,8 +255,7 @@ const DEF={
   cats:[{id:'heiss',n:'Heißgetränke'},{id:'schnaps',n:'Feuerwasser'},{id:'frei',n:'Alkoholfrei'},{id:'poff',n:'Poffertjes (12 Stück)'},{id:'herz',n:'Herzhaft'}],
   items:[
     {id:'aperol',n:'Hot Aperol',cat:'heiss',p:450,pf:'tasse'},
-    {id:'lum_s',n:'Lumumba mit Sahne',cat:'heiss',p:400,pf:'tasse',chk:1,g:'Lumumba',vn:'Mit Sahne'},
-    {id:'lum_o',n:'Lumumba ohne Sahne',cat:'heiss',p:350,pf:'tasse',chk:1,g:'Lumumba',vn:'Ohne Sahne'},
+    {id:'lum',n:'Lumumba',cat:'heiss',p:450,pf:'tasse'},
     {id:'apfel',n:'Heißer Apfelwein',cat:'heiss',p:300,pf:'tasse'},
     {id:'gluh',n:'Glühwein',cat:'heiss',p:300,pf:'tasse',g:'Glühwein',vn:'Ohne Schuss'},
     {id:'gluh_s',n:'Glühwein mit Schuss',cat:'heiss',p:400,pf:'tasse',g:'Glühwein',vn:'Mit Schuss'},
@@ -253,8 +264,7 @@ const DEF={
     {id:'brett',n:'Schnapsbrett (10 Stück)',cat:'schnaps',p:1600,pf:'brett'},
     {id:'eier',n:'Eierlikör im Waffelbecher',cat:'schnaps',p:200,pf:'',chk:1},
     {id:'punsch',n:'Kinderpunsch',cat:'frei',p:250,pf:'tasse'},
-    {id:'scho_s',n:'Heiße Schokolade mit Sahne',cat:'frei',p:300,pf:'tasse',chk:1,g:'Heiße Schokolade',vn:'Mit Sahne'},
-    {id:'scho_o',n:'Heiße Schokolade ohne Sahne',cat:'frei',p:300,pf:'tasse',g:'Heiße Schokolade',vn:'Ohne Sahne'},
+    {id:'scho',n:'Heiße Schokolade',cat:'frei',p:300,pf:'tasse'},
     {id:'wasser',n:'Wasser spritzig 0,33 l',cat:'frei',p:200,pf:'flasche'},
     {id:'pof_pz',n:'Poffertjes Puderzucker',cat:'poff',p:400,pf:'',g:'Poffertjes',vn:'Puderzucker'},
     {id:'pof_sm',n:'Poffertjes Sahne & Smarties',cat:'poff',p:450,pf:'',g:'Poffertjes',vn:'Sahne & Smarties'},
@@ -275,7 +285,9 @@ const zero=()=>({tasse:0,brett:0,flasche:0});
 let inFrame=false;try{inFrame=window.top!==window}catch(e){inFrame=true}
 const STANDALONE=['standalone','fullscreen','minimal-ui'].some(m=>matchMedia(`(display-mode: ${m})`).matches)||navigator.standalone===true;
 
+DEF.mv=2;
 let menu=clone(DEF),menuU=0,sales={},lastSync=0,hintOff=false,freePf=false;
+let myDev='',imported=new Set();
 let pending=new Set(),db=null,online=false,flushing=false;
 let view='kasse',dayF='all',payMode=null,given=0,wipeArm=0,arm='',armT=0,undoFn=null;
 const carts={kasse:{l:{},r:{}},frei:{l:{},r:{}}};
@@ -289,10 +301,12 @@ const people=()=>Array.isArray(menu.people)&&menu.people.length?menu.people:DEF.
 const isFree=r=>r.pay==='frei';
 const upd=r=>r.u||r.ts||0;
 
-function load(){try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){if(s.menu&&s.menu.items)menu=s.menu;sales=s.sales||{};menuU=s.menuU||0;lastSync=s.lastSync||0;hintOff=!!s.hintOff;freePf=!!s.freePf;pending=new Set(s.pending||[])}}catch(e){}}
-function save(){try{localStorage.setItem(LS,JSON.stringify({menu,menuU,sales,lastSync,hintOff,freePf,pending:[...pending]}))}catch(e){toast('Speichern fehlgeschlagen – Speicher voll?')}}
+function load(){try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){if(s.menu&&s.menu.items)menu=s.menu;sales=s.sales||{};menuU=s.menuU||0;lastSync=s.lastSync||0;hintOff=!!s.hintOff;freePf=!!s.freePf;myDev=s.dev||'';imported=new Set(s.imported||[]);pending=new Set(s.pending||[])}}catch(e){}}
+function save(){try{localStorage.setItem(LS,JSON.stringify({menu,menuU,sales,lastSync,hintOff,freePf,dev:myDev,imported:[...imported],pending:[...pending]}))}catch(e){toast('Speichern fehlgeschlagen – Speicher voll?')}}
 const item=id=>menu.items.find(i=>i.id===id);
-function migrate(m){if(!m||!Array.isArray(m.items))return m;for(const it of m.items){if(it.g!==undefined)continue;const d=DEF.items.find(x=>x.id===it.id);if(d&&d.g){it.g=d.g;it.vn=d.vn}}return m}
+function migrate(m){if(!m||!Array.isArray(m.items))return m;
+  if((m.mv||0)<2){const merge=(a,b,it)=>{const i=m.items.findIndex(x=>x.id===a||x.id===b);if(i<0)return;m.items=m.items.filter(x=>x.id!==a&&x.id!==b);if(!m.items.some(x=>x.id===it.id))m.items.splice(i,0,it)};
+    merge('lum_s','lum_o',{id:'lum',n:'Lumumba',cat:'heiss',p:450,pf:'tasse'});merge('scho_s','scho_o',{id:'scho',n:'Heiße Schokolade',cat:'frei',p:300,pf:'tasse'});m.mv=2}for(const it of m.items){if(it.g!==undefined)continue;const d=DEF.items.find(x=>x.id===it.id);if(d&&d.g){it.g=d.g;it.vn=d.vn}}return m}
 function store(rec){sales[rec.id]=rec;pending.add(rec.id)}
 
 function calc(){
@@ -349,7 +363,7 @@ function setSync(){const el=$('sync'),sp=el.querySelector('span');
   sp.textContent=n?`Offline-Kasse · ${n} noch nicht an andere Geräte gesendet`:'Offline-Kasse · alles auf diesem Gerät';}
 
 function newRec(c,pay,extra){const ts=Date.now(),id=ts.toString(36)+Math.random().toString(36).slice(2,6);
-  return{id,ts,u:ts,day:dayKey(ts),lines:c.lines,pfOut:c.pfOut,pfIn:c.pfIn,sub:c.sub,pf:c.pf,total:c.total,pay,void:false,...(extra||{})}}
+  return{id,ts,u:ts,day:dayKey(ts),lines:c.lines,pfOut:c.pfOut,pfIn:c.pfIn,sub:c.sub,pf:c.pf,total:c.total,pay,void:false,dev:myDev,...(extra||{})}}
 function after(rec,msg){save();flush();resetCart();closeModal();renderKasse();setSync();
   toast(msg,()=>{voidSale(rec.id);toast('Storniert')});}
 function finalize(pay){const c=calc();if(c.empty)return;const rec=newRec(c,pay);store(rec);after(rec,`${pay==='bar'?'Bar':'Karte'} · ${fmt(rec.total)} gebucht`)}
@@ -397,6 +411,7 @@ document.addEventListener('click',e=>{
   if(d.v){setView(d.v);return}
   if(d.grp){openVar(d.grp);return}
   if('pdf' in d){makePdf(b);return}
+  if('repclose' in d){$('repov').hidden=true;return}
   if('sharepdf' in d){sharePdf();return}
   if(d.addv){const c=cart();c.l[d.addv]=(c.l[d.addv]||0)+1;hist.push(['l',d.addv]);closeModal();renderKasse();return}
   if(d.add){const c=cart();c.l[d.add]=(c.l[d.add]||0)+1;hist.push(['l',d.add]);renderKasse();return}
@@ -466,13 +481,14 @@ function cleanRec(r){if(!r||typeof r!=='object'||!r.id||!Array.isArray(r.lines))
   const o={id:String(r.id).slice(0,40),ts,u:N(r.u)||ts,day:/^\d{4}-\d\d-\d\d$/.test(r.day)?r.day:dayKey(ts),
     lines:r.lines.map(l=>({id:String(l&&l.id||''),n:String(l&&l.n||'?').slice(0,80),cat:String(l&&l.cat||''),p:N(l&&l.p),q:N(l&&l.q)})),
     pfOut:pf(r.pfOut),pfIn:pf(r.pfIn),sub:N(r.sub),pf:N(r.pf),total:N(r.total),pay,void:!!r.void};
+  if(r.dev)o.dev=String(r.dev).slice(0,12);
   if(pay==='frei'){o.by=String(r.by||'?').slice(0,30);o.paid=r.paid==='karte'?'karte':r.paid==='bar'?'bar':'';o.paidTs=N(r.paidTs)}
   return o;}
 function mergeIn(txt){let o;try{o=JSON.parse(txt)}catch(e){toast('Das sind keine Kassen-Daten');return}
   if(!o||o.app!=='wmkasse'||!o.sales||typeof o.sales!=='object'){toast('Das sind keine Kassen-Daten');return}
   let add=0,chg=0;
   for(const raw of Object.values(o.sales)){const r=cleanRec(raw);if(!r)continue;const l=sales[r.id];
-    if(!l){store(r);add++}else if(upd(r)>upd(l)){store(r);chg++}}
+    if(!l){store(r);if(r.dev!==myDev)imported.add(r.id);add++}else if(upd(r)>upd(l)){store(r);chg++}}
   const m=o.menu;
   if(m&&Array.isArray(m.items)&&Array.isArray(m.cats)&&m.pfand&&PFK.every(k=>m.pfand[k]&&Number.isFinite(+m.pfand[k].v))&&N(o.menuU)>menuU){
     menu=clone(m);if(m.people&&!Array.isArray(m.people))delete menu.people;menuU=N(o.menuU);if(db)db.doc('config/menu').set(clone(menu)).catch(()=>{})}
@@ -481,45 +497,51 @@ function mergeIn(txt){let o;try{o=JSON.parse(txt)}catch(e){toast('Das sind keine
 
 /* PDF-Bericht */
 function loadScript(src){return new Promise((res,rej)=>{const el=document.createElement('script');el.src=src;el.onload=res;el.onerror=()=>{el.remove();rej(new Error(src))};document.head.appendChild(el)})}
-let pdfP=null,lastPdf=null;
+let pdfP=null;
 function getPdf(){if(!pdfP)pdfP=(async()=>{
   if(!(window.jspdf&&window.jspdf.jsPDF)){try{await loadScript('jspdf.umd.min.js')}catch(e){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js')}}
   if(!window.jspdf.jsPDF.API.autoTable){try{await loadScript('jspdf.plugin.autotable.min.js')}catch(e){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js')}}
   return window.jspdf.jsPDF})().catch(e=>{pdfP=null;throw e});return pdfP}
 function hoursOf(recs){const H={};for(const r of recs){if(r.void)continue;const h=new Date(r.ts).getHours(),x=H[h]||(H[h]={h,sub:0,n:0,free:0});if(isFree(r))x.free+=r.sub;else{x.sub+=r.sub;x.n++}}return Object.values(H).sort((a,b)=>a.h-b.h)}
-async function makePdf(b){const old=b.textContent;b.textContent='Erstelle PDF …';b.disabled=true;
-  try{const J=await getPdf(),doc=new J({unit:'mm',format:'a4'}),P=c=>fmt(c).replace('−','-'),{s,recs}=stats(),fb=freeBy();
-    const title=dayF==='all'?'Alle Markttage':dayLbl(dayF),hl=h=>String(h).padStart(2,'0');
-    const pfNet=PFK.reduce((a,k)=>a+(s.out[k]-s.in[k])*menu.pfand[k].v,0);
-    doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('Geschwisterliebe – Kassenbericht',14,18);
-    doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(90);doc.text(title+' · erstellt am '+new Date().toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'})+' Uhr',14,25);doc.setTextColor(0);
-    const O={theme:'grid',styles:{font:'helvetica',fontSize:9.5,cellPadding:2,lineColor:[200,200,200]},headStyles:{fillColor:[47,107,79],textColor:255},footStyles:{fillColor:[235,235,235],textColor:0,fontStyle:'bold'},margin:{left:14,right:14}};
-    const R={halign:'right'};let y=31;
-    const head=t=>{if(y>262){doc.addPage();y=18}doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text(t,14,y);y+=3};
-    const tbl=o=>{doc.autoTable({...O,startY:y,...o});y=doc.lastAutoTable.finalY+9};
-    tbl({head:[['Kennzahl','Betrag']],body:[['Umsatz (ohne Pfand)',P(s.sub)],['Anzahl Verkäufe',String(s.n)],['Bar eingenommen',P(s.bar)],['Karte',P(s.karte)],['Ausgegeben, noch offen',P(s.open)],['Pfand im Umlauf',P(pfNet)]],columnStyles:{1:R},tableWidth:110});
-    const ord=n=>{const i=menu.items.findIndex(x=>x.n===n);return i<0?999:i};
-    const its=Object.values(s.items).sort((a,b)=>ord(a.n)-ord(b.n)),tq=its.reduce((a,i)=>a+i.q,0),tf=its.reduce((a,i)=>a+i.f,0),tu=its.reduce((a,i)=>a+i.u,0);
-    head('Verkaufte Artikel');
-    tbl({head:[['Artikel','Menge','davon ausgegeben (offen)','Umsatz']],body:its.length?its.map(i=>[i.n,String(i.q),i.f?String(i.f):'',P(i.u)]):[['Noch nichts verkauft','','','']],foot:[['Summe',{content:String(tq),styles:R},{content:tf?String(tf):'',styles:R},{content:P(tu),styles:R}]],columnStyles:{1:R,2:R,3:R}});
-    head('Pfand');
-    tbl({head:[['','Raus','Zurück','Offen','Betrag']],body:PFK.map(k=>[menu.pfand[k].n,String(s.out[k]),String(s.in[k]),String(s.out[k]-s.in[k]),P((s.out[k]-s.in[k])*menu.pfand[k].v)]),columnStyles:{1:R,2:R,3:R,4:R}});
-    head('Ausgegeben – Abrechnung pro Person (alle Tage)');
-    tbl({head:[['Person','Offen','Bezahlt','Offene Artikel']],body:fb.map(p=>[p.n,P(p.open),P(p.paid),Object.entries(p.items).map(([n,q])=>q+'× '+n).join(', ')]),columnStyles:{1:R,2:R,3:{cellWidth:95}}});
-    const hrs=hoursOf(recs);
-    if(hrs.length){head('Pro Stunde');tbl({head:[['Stunde','Verkäufe','Umsatz','Ausgegeben']],body:hrs.map(x=>[hl(x.h)+'–'+hl(x.h+1)+' Uhr',String(x.n),P(x.sub),x.free?P(x.free):'']),columnStyles:{1:R,2:R,3:R},tableWidth:130})}
-    const np=doc.getNumberOfPages();for(let i=1;i<=np;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120);doc.text('Seite '+i+' von '+np,196,290,{align:'right'})}
-    const name='Kassenbericht-'+(dayF==='all'?'alle-Tage':dayF)+'.pdf';
-    lastPdf=new File([doc.output('blob')],name,{type:'application/pdf'});
-    await sharePdf();
-  }catch(e){toast('PDF konnte nicht erstellt werden')}
-  finally{b.textContent=old;b.disabled=false}}
-async function sharePdf(){const f=lastPdf;if(!f)return;
-  if(navigator.canShare&&navigator.canShare({files:[f]})){
-    try{await navigator.share({files:[f],title:f.name});closeModal();return}
-    catch(e){if(e&&e.name==='AbortError'){closeModal();return}
-      $('modal').innerHTML=`<h2>PDF ist fertig</h2><p class="note">Tippe auf „Teilen“, um den Bericht zu sichern, zu drucken oder per AirDrop zu senden.</p><div class="mact"><button class="btn" data-close>Schließen</button><button class="btn go" data-sharepdf>Teilen</button></div>`;$('ov').classList.add('on');return}}
-  const url=URL.createObjectURL(f),a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('PDF erstellt');}
+function reportData(){const {s,recs}=stats(),fb=freeBy(),hl=h=>String(h).padStart(2,'0'),P=c=>fmt(c).replace('−','-');
+  const pfNet=PFK.reduce((a,k)=>a+(s.out[k]-s.in[k])*menu.pfand[k].v,0),ord=n=>{const i=menu.items.findIndex(x=>x.n===n);return i<0?999:i};
+  const its=Object.values(s.items).sort((a,b)=>ord(a.n)-ord(b.n));
+  return{P,title:dayF==='all'?'Alle Markttage':dayLbl(dayF),created:new Date().toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'})+' Uhr',
+    kpis:[['Umsatz (ohne Pfand)',P(s.sub)],['Anzahl Verkäufe',String(s.n)],['Bar eingenommen',P(s.bar)],['Karte',P(s.karte)],['Ausgegeben, noch offen',P(s.open)],['Pfand im Umlauf',P(pfNet)]],
+    items:its.map(i=>[i.n,String(i.q),i.f?String(i.f):'',P(i.u)]),tot:['Summe',String(its.reduce((a,i)=>a+i.q,0)),(t=>t?String(t):'')(its.reduce((a,i)=>a+i.f,0)),P(its.reduce((a,i)=>a+i.u,0))],
+    pf:PFK.map(k=>[menu.pfand[k].n,String(s.out[k]),String(s.in[k]),String(s.out[k]-s.in[k]),P((s.out[k]-s.in[k])*menu.pfand[k].v)]),
+    persons:fb.map(p=>[p.n,P(p.open),P(p.paid),Object.entries(p.items).map(([n,q])=>q+'× '+n).join(', ')]),
+    hours:hoursOf(recs).map(x=>[hl(x.h)+'–'+hl(x.h+1)+' Uhr',String(x.n),P(x.sub),x.free?P(x.free):''])};}
+function makePdf(b){const d=reportData();
+  const t=(head,rows,rcols,foot)=>`<table><thead><tr>${head.map((h,i)=>`<th class="${rcols.includes(i)?'r':''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${rcols.includes(i)?'r':''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>${foot?`<tfoot><tr>${foot.map((c,i)=>`<td class="${rcols.includes(i)?'r':''}">${esc(c)}</td>`).join('')}</tr></tfoot>`:''}</table>`;
+  const html=`<div class="paper"><h1>Geschwisterliebe – Kassenbericht</h1><p class="sub">${esc(d.title)} · erstellt am ${esc(d.created)}</p>
+    <div class="kp">${t(['Kennzahl','Betrag'],d.kpis,[1])}</div>
+    <h3>Verkaufte Artikel</h3>${t(['Artikel','Menge','davon ausgegeben (offen)','Umsatz'],d.items.length?d.items:[['Noch nichts verkauft','','','']],[1,2,3],d.tot)}
+    <h3>Pfand</h3>${t(['','Raus','Zurück','Offen','Betrag'],d.pf,[1,2,3,4])}
+    <h3>Ausgegeben – Abrechnung pro Person (alle Tage)</h3>${t(['Person','Offen','Bezahlt','Offene Artikel'],d.persons,[1,2])}
+    ${d.hours.length?`<h3>Pro Stunde</h3>${t(['Stunde','Verkäufe','Umsatz','Ausgegeben'],d.hours,[1,2,3])}`:''}</div>`;
+  let ov=$('repov');if(!ov){ov=document.createElement('div');ov.id='repov';ov.className='repov';document.body.appendChild(ov)}
+  ov.innerHTML=`<div class="repbar"><button class="btn" data-repclose>Schließen</button><b>Kassenbericht</b>${inFrame?'':'<button class="btn pdfb" data-sharepdf>Als PDF teilen</button>'}</div><div class="repscroll">${html}</div>`;
+  ov.hidden=false;getPdf().catch(()=>{});}
+async function sharePdf(){const btn=document.querySelector('[data-sharepdf]');try{
+  if(btn){btn.textContent='Erstelle PDF …';btn.disabled=true}
+  const J=await getPdf(),d=reportData(),doc=new J({unit:'mm',format:'a4'});
+  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text('Geschwisterliebe – Kassenbericht',14,18);
+  doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(90);doc.text(d.title+' · erstellt am '+d.created,14,25);doc.setTextColor(0);
+  const O={theme:'grid',styles:{font:'helvetica',fontSize:9.5,cellPadding:2,lineColor:[200,200,200]},headStyles:{fillColor:[47,107,79],textColor:255},footStyles:{fillColor:[235,235,235],textColor:0,fontStyle:'bold'},margin:{left:14,right:14}};
+  const R={halign:'right'},cs=cols=>Object.fromEntries(cols.map(c=>[c,R]));let y=31;
+  const head=t=>{if(y>262){doc.addPage();y=18}doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text(t,14,y);y+=3};
+  const tbl=o=>{doc.autoTable({...O,startY:y,...o});y=doc.lastAutoTable.finalY+9};
+  tbl({head:[['Kennzahl','Betrag']],body:d.kpis,columnStyles:cs([1]),tableWidth:110});
+  head('Verkaufte Artikel');tbl({head:[['Artikel','Menge','davon ausgegeben (offen)','Umsatz']],body:d.items.length?d.items:[['Noch nichts verkauft','','','']],foot:[d.tot.map((c,i)=>i?{content:c,styles:R}:c)],columnStyles:cs([1,2,3])});
+  head('Pfand');tbl({head:[['','Raus','Zurück','Offen','Betrag']],body:d.pf,columnStyles:cs([1,2,3,4])});
+  head('Ausgegeben – Abrechnung pro Person (alle Tage)');tbl({head:[['Person','Offen','Bezahlt','Offene Artikel']],body:d.persons,columnStyles:{...cs([1,2]),3:{cellWidth:95}}});
+  if(d.hours.length){head('Pro Stunde');tbl({head:[['Stunde','Verkäufe','Umsatz','Ausgegeben']],body:d.hours,columnStyles:cs([1,2,3]),tableWidth:130})}
+  const np=doc.getNumberOfPages();for(let i=1;i<=np;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(120);doc.text('Seite '+i+' von '+np,196,290,{align:'right'})}
+  const f=new File([doc.output('blob')],'Kassenbericht-'+(dayF==='all'?'alle-Tage':dayF)+'.pdf',{type:'application/pdf'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){try{await navigator.share({files:[f],title:f.name})}catch(e){if(!e||e.name!=='AbortError')toast('Teilen nicht möglich – bitte nochmal tippen')}}
+  else{const url=URL.createObjectURL(f),a=document.createElement('a');a.href=url;a.download=f.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);toast('PDF erstellt')}
+}catch(e){toast('PDF konnte nicht erstellt werden')}finally{if(btn){btn.textContent='Als PDF teilen';btn.disabled=false}}}
 
 /* Auswertung */
 function stats(){
@@ -549,12 +571,12 @@ function renderStats(){
   const payTxt=r=>isFree(r)?`${esc(r.by)} gibt aus${r.paid?' · bezahlt':''}`:(r.pay==='bar'?'Bar':'Karte');
   const list=recs.sort((a,b)=>b.ts-a.ts).slice(0,40).map(r=>{const t=new Date(r.ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     const what=[...r.lines.map(l=>`${l.q}× ${l.n}`),...PFK.filter(k=>r.pfIn?.[k]).map(k=>`${r.pfIn[k]}× ${menu.pfand[k].n} zurück`)].join(', ');
-    return`<tr class="${r.void?'void':''}${isFree(r)?' fr':''}"><td class="num">${t}</td><td>${esc(what)}</td><td class="r num">${fmt(isFree(r)?r.sub:r.total)}${isFree(r)&&r.pf?`<small class="fq">+ ${fmt(r.pf)} Pfand bar</small>`:''}</td><td>${payTxt(r)}</td><td class="r"><button class="btn sm" data-void="${esc(r.id)}">${r.void?'Wiederherstellen':'Storno'}</button></td></tr>`}).join('');
+    const im=imported.has(r.id);return`<tr class="${r.void?'void':''}${isFree(r)?' fr':''}${im?' imp':''}"><td class="num">${t}</td><td>${esc(what)}</td><td class="r num">${fmt(isFree(r)?r.sub:r.total)}${isFree(r)&&r.pf?`<small class="fq">+ ${fmt(r.pf)} Pfand bar</small>`:''}</td><td>${payTxt(r)}${im?' <span class="ib">importiert</span>':''}</td><td class="r"><button class="btn sm" data-void="${esc(r.id)}">${r.void?'Wiederherstellen':'Storno'}</button></td></tr>`}).join('');
   const persons=fb.map(p=>{const it=Object.entries(p.items).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`${q}× ${esc(n)}`).join(', ');
     const bt=how=>{const on=arm===p.n+'|'+how;return`<button class="btn sm ${on?'armed':''}" data-settle="${esc(p.n)}" data-how="${how}" ${p.open?'':'disabled'}>${on?`Sicher? ${fmt(p.open)} ${how==='bar'?'bar':'Karte'}`:(how==='bar'?'Bezahlt bar':'Bezahlt Karte')}</button>`};
     return`<div class="person"><div class="ph"><b>${esc(p.n)}</b><span class="num">${fmt(p.open)}</span></div><p class="pi">${it||(p.paid?'Alles bezahlt.':'Noch nichts ausgegeben.')}</p>${p.paid?`<p class="pp">Schon bezahlt: <span class="num">${fmt(p.paid)}</span></p>`:''}<div class="tools">${bt('bar')}${bt('karte')}</div></div>`}).join('');
   getPdf().catch(()=>{});
-  $('v-stats').innerHTML=`<div class="chips">${inFrame?'':'<button class="btn pdfb" data-pdf>PDF-Bericht</button>'}<button data-day="all" aria-pressed="${dayF==='all'}">Alle Tage</button>${days.map(d=>`<button data-day="${esc(d)}" aria-pressed="${dayF===d}">${esc(dayLbl(d))}</button>`).join('')}</div>
+  $('v-stats').innerHTML=`<div class="chips"><button class="btn pdfb" data-pdf>Bericht</button><button data-day="all" aria-pressed="${dayF==='all'}">Alle Tage</button>${days.map(d=>`<button data-day="${esc(d)}" aria-pressed="${dayF===d}">${esc(dayLbl(d))}</button>`).join('')}</div>
   <div class="kpis"><div class="kpi hi"><span>Umsatz (ohne Pfand)</span><b class="num">${fmt(s.sub)}</b><small>${s.n} ${s.n===1?"Verkauf":"Verkäufe"}${s.freeV-s.open>0?', inkl. bezahlter Ausgaben':''}</small></div>
   <div class="kpi"><span>Bar eingenommen</span><b class="num">${fmt(s.bar)}</b><small>soll in der Kasse sein, plus Wechselgeld</small></div>
   <div class="kpi"><span>Karte</span><b class="num">${fmt(s.karte)}</b><small>inkl. Pfand</small></div>
@@ -569,7 +591,7 @@ function renderStats(){
   <textarea id="imp" placeholder="… oder kopierten Text hier einfügen" aria-label="Kassen-Daten einfügen"></textarea><button class="btn sm" data-imp>Einfügen und zusammenführen</button>
   <p class="note">Die Datei ist auch dein Backup: einmal pro Markttag in Dateien sichern.</p></div>
   <div class="card"><h2>Export &amp; Reset</h2><p class="note">Kopiert die Verkaufsliste als Tabelle (zum Einfügen in Excel oder Numbers).</p><div class="tools"><button class="btn" data-copy>Tabelle kopieren</button><button class="btn danger" data-wipe>${wipeArm?'Wirklich alles löschen?':'Alle Verkäufe löschen'}</button></div><p class="note">Löschen ist für die Testverkäufe vor dem Markt gedacht.</p></div></div></div>
-  <div class="card"><h2>Letzte Buchungen</h2>${list?`<table class="stack"><thead><tr><th>Zeit</th><th>Inhalt</th><th class="r">Betrag</th><th>Zahlung</th><th></th></tr></thead><tbody>${list}</tbody></table>`:'<p class="empty">Noch keine Buchungen.</p>'}</div>`;
+  <div class="card"><h2>Letzte Buchungen</h2><p class="note"><span class="ib">importiert</span> = per Abgleich von einem anderen Gerät übernommen.</p>${list?`<table class="stack"><thead><tr><th>Zeit</th><th>Inhalt</th><th class="r">Betrag</th><th>Zahlung</th><th></th></tr></thead><tbody>${list}</tbody></table>`:'<p class="empty">Noch keine Buchungen.</p>'}</div>`;
 }
 function copyCsv(b){
   const {s}=stats();const rows=[['Artikel','Menge','davon ausgegeben (offen)','Umsatz']];
@@ -608,7 +630,7 @@ async function savePrices(b){
 
 function renderAll(){if(view==='kasse'||view==='frei')renderKasse();if(view==='stats')renderStats();if(view==='preise'&&!document.activeElement?.closest('#v-preise'))renderPreise();if(view!=='kasse'&&view!=='frei')renderCart()}
 
-load();migrate(menu);renderKasse();setSync();
+load();migrate(menu);if(!myDev){myDev=Math.random().toString(36).slice(2,10);save()}renderKasse();setSync();
 if(!inFrame&&!STANDALONE&&!hintOff&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document)$('hint').hidden=false;
 if(!inFrame&&'serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist().catch(()=>{})}catch(e){}
