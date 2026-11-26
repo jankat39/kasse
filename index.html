@@ -271,7 +271,7 @@ const PFK=['tasse','brett','flasche'];
 const pl=k=>({tasse:'Tassenpfand',brett:'Brettpfand',flasche:'Flaschenpfand'}[k]);
 const zero=()=>({tasse:0,brett:0,flasche:0});
 let inFrame=false;try{inFrame=window.top!==window}catch(e){inFrame=true}
-const STANDALONE=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const STANDALONE=['standalone','fullscreen','minimal-ui'].some(m=>matchMedia(`(display-mode: ${m})`).matches)||navigator.standalone===true;
 
 let menu=clone(DEF),menuU=0,sales={},lastSync=0,hintOff=false,freePf=false;
 let pending=new Set(),db=null,online=false,flushing=false;
@@ -339,7 +339,7 @@ function setSync(){const el=$('sync'),sp=el.querySelector('span');
   if(db){const n=pending.size;el.className='sync '+(online&&!n?'ok':'warn');sp.textContent=n?`${n} noch nicht gesichert`:online?'Online gesichert':'Verbinde …';return}
   const n=Object.values(sales).filter(r=>upd(r)>lastSync).length;
   el.className='sync '+(n?'warn':'ok');
-  sp.textContent=n?`${n} noch nicht abgeglichen`:(Object.keys(sales).length?'Alles abgeglichen':'Auf diesem Gerät gespeichert');}
+  sp.textContent=n?`Offline-Kasse · ${n} noch nicht an andere Geräte gesendet`:'Offline-Kasse · alles auf diesem Gerät';}
 
 function newRec(c,pay,extra){const ts=Date.now(),id=ts.toString(36)+Math.random().toString(36).slice(2,6);
   return{id,ts,u:ts,day:dayKey(ts),lines:c.lines,pfOut:c.pfOut,pfIn:c.pfIn,sub:c.sub,pf:c.pf,total:c.total,pay,void:false,...(extra||{})}}
