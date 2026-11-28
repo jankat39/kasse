@@ -252,10 +252,10 @@ tr.fr td:nth-child(4){color:var(--gold)}
 
 <script>
 {
-const LS='wmkasse-v1',APPV='11';
+const LS='wmkasse-v1',APPV='12';
 const DEF={
   people:['Kim','Marco','Sarah','Andrea'],
-  pfand:{tasse:{n:'Tasse',v:200},brett:{n:'Brett',v:1000},flasche:{n:'Flasche',v:50}},
+  pv:1,pfand:{tasse:{n:'Tasse',v:200},brett:{n:'Brett',v:1500},flasche:{n:'Flasche',v:50}},
   cats:[{id:'heiss',n:'Heißgetränke'},{id:'schnaps',n:'Feuerwasser'},{id:'frei',n:'Alkoholfrei'},{id:'poff',n:'Poffertjes (12 Stück)'},{id:'herz',n:'Herzhaft'}],
   items:[
     {id:'aperol',n:'Hot Aperol',cat:'heiss',p:450,pf:'tasse'},
@@ -266,7 +266,7 @@ const DEF={
     {id:'birne',n:'Williams Birne',cat:'schnaps',p:200,pf:''},
     {id:'frang',n:'Frangelico Nusslikör',cat:'schnaps',p:200,pf:''},
     {id:'brett',n:'Schnapsbrett (10 Stück)',cat:'schnaps',p:1600,pf:'brett'},
-    {id:'eier',n:'Eierlikör im Waffelbecher',cat:'schnaps',p:200,pf:'',chk:1},
+    {id:'eier',n:'Eierlikör im Waffelbecher',cat:'schnaps',p:250,pf:''},
     {id:'punsch',n:'Kinderpunsch',cat:'frei',p:250,pf:'tasse'},
     {id:'scho',n:'Heiße Schokolade',cat:'frei',p:300,pf:'tasse'},
     {id:'wasser',n:'Wasser spritzig 0,33 l',cat:'frei',p:200,pf:'flasche'},
@@ -275,7 +275,7 @@ const DEF={
     {id:'pof_st',n:'Poffertjes Sahne & Schokostreusel',cat:'poff',p:450,pf:'',g:'Poffertjes',vn:'Sahne & Schokostreusel'},
     {id:'pof_ss',n:'Poffertjes Schokosauce',cat:'poff',p:450,pf:'',g:'Poffertjes',vn:'Schokosauce'},
     {id:'pof_el',n:'Poffertjes Eierlikör',cat:'poff',p:500,pf:'',chk:1,g:'Poffertjes',vn:'Eierlikör'},
-    {id:'gulasch',n:'Rindergulaschsuppe mit Bierbrot',cat:'herz',p:600,pf:''}
+    {id:'gulasch',n:'Rindergulaschsuppe mit Bierbrot',cat:'herz',p:550,pf:''}
   ]};
 const clone=o=>JSON.parse(JSON.stringify(o));
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -311,7 +311,9 @@ function save(){try{localStorage.setItem(LS,JSON.stringify({menu,menuU,sales,las
 const item=id=>menu.items.find(i=>i.id===id);
 function migrate(m){if(!m||!Array.isArray(m.items))return m;
   if((m.mv||0)<2){const merge=(a,b,it)=>{const i=m.items.findIndex(x=>x.id===a||x.id===b);if(i<0)return;m.items=m.items.filter(x=>x.id!==a&&x.id!==b);if(!m.items.some(x=>x.id===it.id))m.items.splice(i,0,it)};
-    merge('lum_s','lum_o',{id:'lum',n:'Lumumba',cat:'heiss',p:450,pf:'tasse'});merge('scho_s','scho_o',{id:'scho',n:'Heiße Schokolade',cat:'frei',p:300,pf:'tasse'});m.mv=2}for(const it of m.items){if(it.g!==undefined)continue;const d=DEF.items.find(x=>x.id===it.id);if(d&&d.g){it.g=d.g;it.vn=d.vn}}return m}
+    merge('lum_s','lum_o',{id:'lum',n:'Lumumba',cat:'heiss',p:450,pf:'tasse'});merge('scho_s','scho_o',{id:'scho',n:'Heiße Schokolade',cat:'frei',p:300,pf:'tasse'});m.mv=2}
+  if((m.pv||0)<1){const set=(id,p)=>{const it=m.items.find(x=>x.id===id);if(it){it.p=p;delete it.chk}};set('gulasch',550);set('eier',250);if(m.pfand&&m.pfand.brett)m.pfand.brett.v=1500;m.pv=1}
+  for(const it of m.items){if(it.g!==undefined)continue;const d=DEF.items.find(x=>x.id===it.id);if(d&&d.g){it.g=d.g;it.vn=d.vn}}return m}
 function store(rec){sales[rec.id]=rec;pending.add(rec.id)}
 
 function calc(){
@@ -650,7 +652,7 @@ async function savePrices(b){
 
 function renderAll(){if(view==='kasse'||view==='frei')renderKasse();if(view==='stats')renderStats();if(view==='preise'&&!document.activeElement?.closest('#v-preise'))renderPreise();if(view!=='kasse'&&view!=='frei')renderCart()}
 
-load();migrate(menu);if(!myDev){myDev=Math.random().toString(36).slice(2,10);save()}renderKasse();setSync();
+load();migrate(menu);save();if(!myDev){myDev=Math.random().toString(36).slice(2,10);save()}renderKasse();setSync();
 if(!inFrame&&!STANDALONE&&!hintOff&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document)$('hint').hidden=false;
 if(!inFrame&&'serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist().catch(()=>{})}catch(e){}
