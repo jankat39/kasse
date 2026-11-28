@@ -150,6 +150,9 @@ body.mode-frei nav button[aria-current=true]{background:var(--gold);color:#1d222
 .who{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .who button{font:800 19px Nunito;border:0;border-radius:14px;min-height:60px;cursor:pointer;background:#6b5a36;color:#fff}
 .who button:active{background:#85703f}.who button:disabled{opacity:.35}
+.who .ent{grid-column:1/-1;background:transparent;border:2px dashed var(--gold);color:var(--gold);min-height:52px}.who .ent:active{background:#f0c35a22}
+.eppl{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:6px 0 14px}.eppl button{font:800 18px Nunito;min-height:54px;border-radius:12px;border:2px solid var(--line);background:var(--tile);color:var(--ink);cursor:pointer}.eppl button[aria-pressed=true]{background:var(--gold);color:#1d2224;border-color:var(--gold)}
+#entin{font:800 22px Nunito;width:100%;min-height:52px;border-radius:12px;border:1px solid var(--line);background:var(--tile);color:var(--ink);padding:0 12px;text-align:right}
 .who .sam{grid-column:1/-1;background:#8a4b2c}.who .sam:active{background:#a35a36}.who .sam small{display:block;font:600 13px Nunito;opacity:.85}
 .persons{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
 .person{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px}
@@ -252,7 +255,7 @@ tr.fr td:nth-child(4){color:var(--gold)}
 
 <script>
 {
-const LS='wmkasse-v1',APPV='12';
+const LS='wmkasse-v1',APPV='13';
 const DEF={
   people:['Kim','Marco','Sarah','Andrea'],
   pv:1,pfand:{tasse:{n:'Tasse',v:200},brett:{n:'Brett',v:1500},flasche:{n:'Flasche',v:50}},
@@ -303,6 +306,8 @@ const decL=k=>{const c=cart();c.l[k]=(c.l[k]||0)-1;if(c.l[k]<=0)delete c.l[k]};
 const decR=k=>{const c=cart();c.r[k]=(c.r[k]||0)-1;if(c.r[k]<=0)delete c.r[k]};
 const people=()=>Array.isArray(menu.people)&&menu.people.length?menu.people:DEF.people;
 const isFree=r=>r.pay==='frei';
+const isOut=r=>r.pay==='entnahme';
+let entAmt=0,entWho='';
 const qf=q=>{q=Math.round(q*2)/2;return Number.isInteger(q)?String(q):(Math.floor(q)||'')+'½'};
 const upd=r=>r.u||r.ts||0;
 
@@ -355,7 +360,7 @@ function renderCart(){
   ?`<button class="pft ${freePf?'on':''}" data-pft aria-pressed="${freePf}"><span>Pfand kassieren</span><b>${freePf?'Ja':'Nein'}</b></button>
     ${freePf&&c.pf?`<div class="pfcash"><span>Jetzt bar kassieren (Pfand)</span><span class="num">${fmt(c.pf)}</span></div>`:''}
     <div class="total"><span class="hand">Wert</span><span class="num">${fmt(c.sub)}</span></div>
-    <p class="who-t">Wer gibt aus?</p><div class="who">${people().map(n=>`<button data-giver="${esc(n)}" ${c.empty?'disabled':''}>${esc(n)}</button>`).join('')}<button class="sam" data-samco ${c.empty?'disabled':''}>Samco<small>Sarah und Marco teilen sich den Betrag</small></button></div>${undo}`
+    <p class="who-t">Wer gibt aus?</p><div class="who">${people().map(n=>`<button data-giver="${esc(n)}" ${c.empty?'disabled':''}>${esc(n)}</button>`).join('')}<button class="sam" data-samco ${c.empty?'disabled':''}>Samco<small>Sarah und Marco teilen sich den Betrag</small></button><button class="ent" data-ent>Bargeld entnehmen</button></div>${undo}`
   :`<div class="row"><span>Waren</span><span class="num">${fmt(c.sub)}</span></div><div class="row"><span>Pfand (netto)</span><span class="num">${fmt(c.pf)}</span></div>
   <div class="total ${neg?'neg':''}"><span class="hand">${neg?'Auszahlen':'Summe'}</span><span class="num">${fmt(neg?-c.total:c.total)}</span></div>
   <div class="pay"><button class="bar" data-pay="bar" ${c.empty?'disabled':''}>Bar</button><button class="karte" data-pay="karte" ${c.empty||neg?'disabled':''}>Karte</button></div>${undo}`;
@@ -380,6 +385,19 @@ function giveSamco(){const c=calc();if(c.empty)return;const half=c.lines.map(l=>
   const b=newRec({...c,lines:half.map(l=>({...l})),pfOut:zero(),pfIn:zero(),pf:0},'frei',{by:'Marco',paid:'',sub:sM,total:sM,pf:0,sam:1});
   b.id=a.id+'m';store(a);store(b);save();flush();resetCart();closeModal();renderKasse();setSync();
   toast(`Samco gibt aus · Sarah ${fmt(sS)}, Marco ${fmt(sM)}`+(c.pf?` · ${fmt(c.pf)} Pfand bar kassiert`:''),()=>{voidSale(a.id);voidSale(b.id);toast('Storniert')});}
+function openEnt(){const ppl=[...people()];
+  $('modal').innerHTML=`<h2>Bargeld entnehmen</h2><p class="note">Wird von der Bar-Summe abgezogen und pro Person gezählt.</p>
+  <input id="entin" inputmode="decimal" aria-label="Betrag" value="${entAmt?(entAmt/100).toFixed(2).replace('.',','):''}" placeholder="Betrag in €">
+  <div class="notes"><button data-enote="500">+5 €</button><button data-enote="1000">+10 €</button><button data-enote="2000">+20 €</button><button data-enote="5000">+50 €</button><button data-enote="10000">+100 €</button><button data-enote="100">+1 €</button><button data-enote="200">+2 €</button><button data-ereset>Korrektur</button></div>
+  <p class="who-t">Wer nimmt?</p><div class="eppl">${ppl.map(n=>`<button data-eby="${esc(n)}" aria-pressed="${entWho===n}">${esc(n)}</button>`).join('')}</div>
+  <div class="mact"><button class="btn" data-close>Abbrechen</button><button class="btn go" data-entok ${entAmt>0&&entWho?'':'disabled'}>${entAmt>0?fmt(entAmt)+' entnehmen':'Entnehmen'}</button></div>`;
+  $('ov').classList.add('on');
+  const el=$('entin');el.oninput=()=>{entAmt=num(el.value);const b=document.querySelector('[data-entok]');if(b){b.disabled=!(entAmt>0&&entWho);b.textContent=entAmt>0?fmt(entAmt)+' entnehmen':'Entnehmen'}};}
+function bookEnt(){if(!(entAmt>0&&entWho))return;const ts=Date.now(),id=ts.toString(36)+Math.random().toString(36).slice(2,6);
+  const rec={id,ts,u:ts,day:dayKey(ts),lines:[],pfOut:zero(),pfIn:zero(),sub:0,pf:0,total:-entAmt,pay:'entnahme',by:entWho,amt:entAmt,void:false,dev:myDev};
+  store(rec);save();flush();closeModal();setSync();renderAll();
+  toast(`${entWho} entnimmt ${fmt(entAmt)} bar`,()=>{voidSale(rec.id);toast('Storniert')});entAmt=0;entWho='';}
+function entBy(){const m={};for(const r of Object.values(sales)){if(r.void||!isOut(r))continue;m[r.by]=(m[r.by]||0)+(r.amt||0)}return Object.entries(m).sort((a,b)=>b[1]-a[1])}
 function voidSale(id,on=true){const r=sales[id];if(!r)return;store({...clone(r),void:on,u:Date.now()});save();flush();setSync();renderAll()}
 
 async function flush(){
@@ -438,6 +456,11 @@ document.addEventListener('click',e=>{
   if('clear' in d){resetCart();renderKasse();return}
   if(d.giver){giveOut(d.giver);return}
   if('samco' in d){giveSamco();return}
+  if('ent' in d){entAmt=0;entWho='';openEnt();return}
+  if(d.enote){entAmt+=+d.enote;openEnt();return}
+  if('ereset' in d){entAmt=0;openEnt();return}
+  if(d.eby){entWho=d.eby;openEnt();return}
+  if('entok' in d){bookEnt();return}
   if('pft' in d){freePf=!freePf;save();renderKasse();return}
   if(d.pay==='karte'){openCard();return}
   if('cardok' in d){finalize('karte');return}
@@ -494,12 +517,13 @@ const N=x=>{x=Number(x);return Number.isFinite(x)?Math.round(x):0};
 const NQ=x=>{x=Number(x);return Number.isFinite(x)?Math.round(x*2)/2:0};
 function cleanRec(r){if(!r||typeof r!=='object'||!r.id||!Array.isArray(r.lines))return null;
   const ts=N(r.ts)||Date.now(),pf=o=>{const x={};for(const k of PFK)x[k]=N(o&&o[k]);return x};
-  const pay=r.pay==='karte'?'karte':r.pay==='frei'?'frei':'bar';
+  const pay=r.pay==='karte'?'karte':r.pay==='frei'?'frei':r.pay==='entnahme'?'entnahme':'bar';
   const o={id:String(r.id).slice(0,40),ts,u:N(r.u)||ts,day:/^\d{4}-\d\d-\d\d$/.test(r.day)?r.day:dayKey(ts),
     lines:r.lines.map(l=>({id:String(l&&l.id||''),n:String(l&&l.n||'?').slice(0,80),cat:String(l&&l.cat||''),p:N(l&&l.p),q:NQ(l&&l.q)})),
     pfOut:pf(r.pfOut),pfIn:pf(r.pfIn),sub:N(r.sub),pf:N(r.pf),total:N(r.total),pay,void:!!r.void};
   if(r.dev)o.dev=String(r.dev).slice(0,12);
   if(pay==='frei'){o.by=String(r.by||'?').slice(0,30);o.paid=r.paid==='karte'?'karte':r.paid==='bar'?'bar':'';o.paidTs=N(r.paidTs);if(r.sam)o.sam=1}
+  if(pay==='entnahme'){o.by=String(r.by||'?').slice(0,30);o.amt=N(r.amt)}
   return o;}
 function mergeIn(txt){let o;try{o=JSON.parse(txt)}catch(e){toast('Das sind keine Kassen-Daten');return}
   if(!o||o.app!=='wmkasse'||!o.sales||typeof o.sales!=='object'){toast('Das sind keine Kassen-Daten');return}
@@ -519,12 +543,12 @@ function getPdf(){if(!pdfP)pdfP=(async()=>{
   if(!(window.jspdf&&window.jspdf.jsPDF)){try{await loadScript('jspdf.umd.min.js')}catch(e){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js')}}
   if(!window.jspdf.jsPDF.API.autoTable){try{await loadScript('jspdf.plugin.autotable.min.js')}catch(e){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js')}}
   return window.jspdf.jsPDF})().catch(e=>{pdfP=null;throw e});return pdfP}
-function hoursOf(recs){const H={};for(const r of recs){if(r.void)continue;const h=new Date(r.ts).getHours(),x=H[h]||(H[h]={h,sub:0,n:0,free:0});if(isFree(r))x.free+=r.sub;else{x.sub+=r.sub;x.n++}}return Object.values(H).sort((a,b)=>a.h-b.h)}
+function hoursOf(recs){const H={};for(const r of recs){if(r.void||isOut(r))continue;const h=new Date(r.ts).getHours(),x=H[h]||(H[h]={h,sub:0,n:0,free:0});if(isFree(r))x.free+=r.sub;else{x.sub+=r.sub;x.n++}}return Object.values(H).sort((a,b)=>a.h-b.h)}
 function reportData(){const {s,recs}=stats(),fb=freeBy(),hl=h=>String(h).padStart(2,'0'),P=c=>fmt(c).replace('−','-');
   const pfNet=PFK.reduce((a,k)=>a+(s.out[k]-s.in[k])*menu.pfand[k].v,0),ord=n=>{const i=menu.items.findIndex(x=>x.n===n);return i<0?999:i};
   const its=Object.values(s.items).sort((a,b)=>ord(a.n)-ord(b.n));
   return{P,title:dayF==='all'?'Alle Markttage':dayLbl(dayF),created:new Date().toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'})+' Uhr',
-    kpis:[['Umsatz (ohne Pfand)',P(s.sub)],['Anzahl Verkäufe',String(s.n)],['Bar eingenommen',P(s.bar)],['Karte',P(s.karte)],['Ausgegeben, noch offen',P(s.open)],['Pfand im Umlauf',P(pfNet)]],
+    kpis:[['Umsatz (ohne Pfand)',P(s.sub)],['Anzahl Verkäufe',String(s.n)],['Bar eingenommen',P(s.bar)],['Karte',P(s.karte)],['Ausgegeben, noch offen',P(s.open)],['Bargeld entnommen',P(s.ent)],['Soll in der Kasse (bar)',P(s.bar-s.ent)],['Pfand im Umlauf',P(pfNet)]],
     items:its.map(i=>[i.n,qf(i.q),i.f?qf(i.f):'',P(i.u)]),tot:['Summe',qf(its.reduce((a,i)=>a+i.q,0)),(t=>t?qf(t):'')(its.reduce((a,i)=>a+i.f,0)),P(its.reduce((a,i)=>a+i.u,0))],
     pf:PFK.map(k=>[menu.pfand[k].n,String(s.out[k]),String(s.in[k]),String(s.out[k]-s.in[k]),P((s.out[k]-s.in[k])*menu.pfand[k].v)]),
     persons:fb.map(p=>[p.n,P(p.open),P(p.paid),Object.entries(p.items).map(([n,q])=>qf(q)+'× '+n).join(', ')]),
@@ -568,8 +592,9 @@ async function sharePdf(){const btn=document.querySelector('[data-sharepdf]');tr
 function stats(){
   const recs=Object.values(sales).filter(r=>dayF==='all'||r.day===dayF);
   const live=recs.filter(r=>!r.void);
-  const s={n:0,sub:0,bar:0,karte:0,open:0,freeV:0,out:zero(),in:zero(),items:{}};
+  const s={n:0,sub:0,bar:0,karte:0,open:0,freeV:0,ent:0,out:zero(),in:zero(),items:{}};
   for(const r of live){
+    if(isOut(r)){s.ent+=r.amt||0;continue}
     for(const l of r.lines){const x=s.items[l.n]||(s.items[l.n]={n:l.n,q:0,u:0,f:0});x.q+=l.q;if(isFree(r)&&!r.paid)x.f+=l.q;else x.u+=l.p*l.q}
     if(isFree(r)){s.freeV+=r.sub;if(r.paid){s.sub+=r.sub;s[r.paid]+=r.sub}else s.open+=r.sub;if(r.pf){s.bar+=r.pf;for(const k of PFK)s.out[k]+=r.pfOut?.[k]||0}continue}
     s.n++;s.sub+=r.sub;s[r.pay==='karte'?'karte':'bar']+=r.total;for(const k of PFK){s.out[k]+=r.pfOut?.[k]||0;s.in[k]+=r.pfIn?.[k]||0}}
@@ -582,16 +607,16 @@ function renderStats(){
   const pfRows=PFK.map(k=>{const out=s.out[k],inn=s.in[k];return`<tr><td>${esc(menu.pfand[k].n)}</td><td class="r num">${out}</td><td class="r num">${inn}</td><td class="r num"><b>${out-inn}</b></td><td class="r num">${fmt((out-inn)*menu.pfand[k].v)}</td></tr>`}).join('');
   const pfNet=PFK.reduce((a,k)=>a+(s.out[k]-s.in[k])*menu.pfand[k].v,0);
   const fb=freeBy(),openAll=fb.reduce((a,p)=>a+p.open,0);
-  const H={};for(const r of recs){if(r.void)continue;const h=new Date(r.ts).getHours(),x=H[h]||(H[h]={h,sub:0,n:0,free:0,items:{}});
+  const H={};for(const r of recs){if(r.void||isOut(r))continue;const h=new Date(r.ts).getHours(),x=H[h]||(H[h]={h,sub:0,n:0,free:0,items:{}});
     if(isFree(r))x.free+=r.sub;else{x.sub+=r.sub;x.n++}for(const l of r.lines)x.items[l.n]=(x.items[l.n]||0)+l.q}
   const hrs=Object.values(H).sort((a,b)=>a.h-b.h),hmax=Math.max(1,...hrs.map(x=>x.sub)),best=hrs.reduce((m,x)=>x.sub>(m?m.sub:-1)?x:m,null);
   const hl=h=>String(h).padStart(2,'0');
   const hourCard=hrs.length?`<div class="card"><h2>Pro Stunde</h2><p class="note">${dayF==='all'?'Alle Tage zusammengezählt.':'Nur '+esc(dayLbl(dayF))+'.'} Stärkste Stunde: <b>${hl(best.h)}–${hl(best.h+1)} Uhr</b> mit <b class="num">${fmt(best.sub)}</b>.</p>
   <div class="hours">${hrs.map(x=>{const top=Object.entries(x.items).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>`${qf(q)}× ${esc(n)}`).join(', ');
     return`<div class="hr"><span class="ht num">${hl(x.h)}–${hl(x.h+1)}</span><div class="hb"><div class="hbar" style="width:${(x.sub/hmax*100).toFixed(1)}%"></div><span class="hv num">${fmt(x.sub)} · ${x.n} ${x.n===1?'Verkauf':'Verkäufe'}${x.free?` · ${fmt(x.free)} ausgegeben`:''}</span><span class="htop">${top}</span></div></div>`}).join('')}</div></div>`:'';
-  const payTxt=r=>isFree(r)?`${esc(r.by)} gibt aus${r.sam?' (Samco)':''}${r.paid?' · bezahlt':''}`:(r.pay==='bar'?'Bar':'Karte');
+  const payTxt=r=>isOut(r)?`${esc(r.by)} entnimmt Bargeld`:isFree(r)?`${esc(r.by)} gibt aus${r.sam?' (Samco)':''}${r.paid?' · bezahlt':''}`:(r.pay==='bar'?'Bar':'Karte');
   const list=recs.sort((a,b)=>b.ts-a.ts).slice(0,40).map(r=>{const t=new Date(r.ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    const what=[...r.lines.map(l=>`${qf(l.q)}× ${l.n}`),...PFK.filter(k=>r.pfIn?.[k]).map(k=>`${r.pfIn[k]}× ${menu.pfand[k].n} zurück`)].join(', ');
+    const what=isOut(r)?'Bargeldentnahme':[...r.lines.map(l=>`${qf(l.q)}× ${l.n}`),...PFK.filter(k=>r.pfIn?.[k]).map(k=>`${r.pfIn[k]}× ${menu.pfand[k].n} zurück`)].join(', ');
     const im=imported.has(r.id);return`<tr class="${r.void?'void':''}${isFree(r)?' fr':''}${im?' imp':''}"><td class="num">${t}</td><td>${esc(what)}</td><td class="r num">${fmt(isFree(r)?r.sub:r.total)}${isFree(r)&&r.pf?`<small class="fq">+ ${fmt(r.pf)} Pfand bar</small>`:''}</td><td>${payTxt(r)}${im?' <span class="ib">importiert</span>':''}</td><td class="r"><button class="btn sm" data-void="${esc(r.id)}">${r.void?'Wiederherstellen':'Storno'}</button></td></tr>`}).join('');
   const persons=fb.map(p=>{const it=Object.entries(p.items).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`${qf(q)}× ${esc(n)}`).join(', ');
     const bt=how=>{const on=arm===p.n+'|'+how;return`<button class="btn sm ${on?'armed':''}" data-settle="${esc(p.n)}" data-how="${how}" ${p.open?'':'disabled'}>${on?`Sicher? ${fmt(p.open)} ${how==='bar'?'bar':'Karte'}`:(how==='bar'?'Bezahlt bar':'Bezahlt Karte')}</button>`};
@@ -599,7 +624,8 @@ function renderStats(){
   getPdf().catch(()=>{});
   $('v-stats').innerHTML=`<div class="chips"><button class="btn pdfb" data-pdf>Bericht</button><button data-day="all" aria-pressed="${dayF==='all'}">Alle Tage</button>${days.map(d=>`<button data-day="${esc(d)}" aria-pressed="${dayF===d}">${esc(dayLbl(d))}</button>`).join('')}</div>
   <div class="kpis"><div class="kpi hi"><span>Umsatz (ohne Pfand)</span><b class="num">${fmt(s.sub)}</b><small>${s.n} ${s.n===1?"Verkauf":"Verkäufe"}${s.freeV-s.open>0?', inkl. bezahlter Ausgaben':''}</small></div>
-  <div class="kpi"><span>Bar eingenommen</span><b class="num">${fmt(s.bar)}</b><small>soll in der Kasse sein, plus Wechselgeld</small></div>
+  <div class="kpi"><span>Bar eingenommen</span><b class="num">${fmt(s.bar)}</b><small>${s.ent?`minus ${fmt(s.ent)} Entnahmen = <b class="num">${fmt(s.bar-s.ent)}</b> soll in der Kasse sein`:'soll in der Kasse sein'}, plus Wechselgeld</small></div>
+  <div class="kpi"><span>Bargeld entnommen</span><b class="num">${fmt(s.ent)}</b><small>${entBy().map(([n,a])=>esc(n)+' '+fmt(a)).join(' · ')||'noch keine Entnahme'}</small></div>
   <div class="kpi"><span>Karte</span><b class="num">${fmt(s.karte)}</b><small>inkl. Pfand</small></div>
   <div class="kpi fk"><span>Ausgegeben, offen</span><b class="num">${fmt(s.open)}</b><small>wird am Ende abgerechnet</small></div>
   <div class="kpi"><span>Pfand im Umlauf</span><b class="num">${fmt(pfNet)}</b><small>${s.out.tasse-s.in.tasse} Tassen noch draußen</small></div></div>
@@ -619,7 +645,7 @@ function copyCsv(b){
   for(const i of Object.values(s.items).sort((a,b)=>b.q-a.q))rows.push([i.n,String(i.q).replace('.',','),String(i.f).replace('.',','),(i.u/100).toFixed(2).replace('.',',')]);
   rows.push([],['Person','Offen','Bezahlt']);for(const p of freeBy())rows.push([p.n,(p.open/100).toFixed(2).replace('.',','),(p.paid/100).toFixed(2).replace('.',',')]);
   rows.push([],['Zeit','Tag','Zahlung','Waren','Pfand','Gesamt','Storniert','Inhalt']);
-  for(const r of Object.values(sales).sort((a,b)=>a.ts-b.ts))rows.push([new Date(r.ts).toLocaleString('de-DE'),r.day,isFree(r)?'ausgegeben: '+r.by+(r.paid?' (bezahlt '+r.paid+')':' (offen)'):r.pay,(r.sub/100).toFixed(2).replace('.',','),(r.pf/100).toFixed(2).replace('.',','),(r.total/100).toFixed(2).replace('.',','),r.void?'ja':'',r.lines.map(l=>l.q+'x '+l.n).join(' / ')]);
+  for(const r of Object.values(sales).sort((a,b)=>a.ts-b.ts))rows.push([new Date(r.ts).toLocaleString('de-DE'),r.day,isOut(r)?'entnahme: '+r.by:isFree(r)?'ausgegeben: '+r.by+(r.paid?' (bezahlt '+r.paid+')':' (offen)'):r.pay,(r.sub/100).toFixed(2).replace('.',','),(r.pf/100).toFixed(2).replace('.',','),(r.total/100).toFixed(2).replace('.',','),r.void?'ja':'',r.lines.map(l=>l.q+'x '+l.n).join(' / ')]);
   const txt=rows.map(r=>r.join('\t')).join('\n');
   navigator.clipboard.writeText(txt).then(()=>{b.textContent='Kopiert ✓'},()=>{b.textContent='Kopieren nicht erlaubt'});
 }
