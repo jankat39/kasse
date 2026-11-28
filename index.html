@@ -255,14 +255,14 @@ tr.fr td:nth-child(4){color:var(--gold)}
 
 <script>
 {
-const LS='wmkasse-v1',APPV='13';
+const LS='wmkasse-v1',APPV='14';
 const DEF={
   people:['Kim','Marco','Sarah','Andrea'],
-  pv:1,pfand:{tasse:{n:'Tasse',v:200},brett:{n:'Brett',v:1500},flasche:{n:'Flasche',v:50}},
+  pv:2,pfand:{tasse:{n:'Tasse',v:200},brett:{n:'Brett',v:1500},flasche:{n:'Flasche',v:50}},
   cats:[{id:'heiss',n:'Heißgetränke'},{id:'schnaps',n:'Feuerwasser'},{id:'frei',n:'Alkoholfrei'},{id:'poff',n:'Poffertjes (12 Stück)'},{id:'herz',n:'Herzhaft'}],
   items:[
     {id:'aperol',n:'Hot Aperol',cat:'heiss',p:450,pf:'tasse'},
-    {id:'lum',n:'Lumumba',cat:'heiss',p:450,pf:'tasse'},
+    {id:'lum',n:'Lumumba',cat:'heiss',p:400,pf:'tasse'},
     {id:'apfel',n:'Heißer Apfelwein',cat:'heiss',p:300,pf:'tasse'},
     {id:'gluh',n:'Glühwein',cat:'heiss',p:300,pf:'tasse',g:'Glühwein',vn:'Ohne Schuss'},
     {id:'gluh_s',n:'Glühwein mit Schuss',cat:'heiss',p:400,pf:'tasse',g:'Glühwein',vn:'Mit Schuss'},
@@ -316,8 +316,9 @@ function save(){try{localStorage.setItem(LS,JSON.stringify({menu,menuU,sales,las
 const item=id=>menu.items.find(i=>i.id===id);
 function migrate(m){if(!m||!Array.isArray(m.items))return m;
   if((m.mv||0)<2){const merge=(a,b,it)=>{const i=m.items.findIndex(x=>x.id===a||x.id===b);if(i<0)return;m.items=m.items.filter(x=>x.id!==a&&x.id!==b);if(!m.items.some(x=>x.id===it.id))m.items.splice(i,0,it)};
-    merge('lum_s','lum_o',{id:'lum',n:'Lumumba',cat:'heiss',p:450,pf:'tasse'});merge('scho_s','scho_o',{id:'scho',n:'Heiße Schokolade',cat:'frei',p:300,pf:'tasse'});m.mv=2}
+    merge('lum_s','lum_o',{id:'lum',n:'Lumumba',cat:'heiss',p:400,pf:'tasse'});merge('scho_s','scho_o',{id:'scho',n:'Heiße Schokolade',cat:'frei',p:300,pf:'tasse'});m.mv=2}
   if((m.pv||0)<1){const set=(id,p)=>{const it=m.items.find(x=>x.id===id);if(it){it.p=p;delete it.chk}};set('gulasch',550);set('eier',250);if(m.pfand&&m.pfand.brett)m.pfand.brett.v=1500;m.pv=1}
+  if((m.pv||0)<2){const it=m.items.find(x=>x.id==='lum');if(it)it.p=400;m.pv=2}
   for(const it of m.items){if(it.g!==undefined)continue;const d=DEF.items.find(x=>x.id===it.id);if(d&&d.g){it.g=d.g;it.vn=d.vn}}return m}
 function store(rec){sales[rec.id]=rec;pending.add(rec.id)}
 
