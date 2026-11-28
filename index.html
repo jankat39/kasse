@@ -150,6 +150,7 @@ body.mode-frei nav button[aria-current=true]{background:var(--gold);color:#1d222
 .who{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .who button{font:800 19px Nunito;border:0;border-radius:14px;min-height:60px;cursor:pointer;background:#6b5a36;color:#fff}
 .who button:active{background:#85703f}.who button:disabled{opacity:.35}
+.who .sam{grid-column:1/-1;background:#8a4b2c}.who .sam:active{background:#a35a36}.who .sam small{display:block;font:600 13px Nunito;opacity:.85}
 .persons{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
 .person{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:12px}
 .ph{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
@@ -302,6 +303,7 @@ const decL=k=>{const c=cart();c.l[k]=(c.l[k]||0)-1;if(c.l[k]<=0)delete c.l[k]};
 const decR=k=>{const c=cart();c.r[k]=(c.r[k]||0)-1;if(c.r[k]<=0)delete c.r[k]};
 const people=()=>Array.isArray(menu.people)&&menu.people.length?menu.people:DEF.people;
 const isFree=r=>r.pay==='frei';
+const qf=q=>{q=Math.round(q*2)/2;return Number.isInteger(q)?String(q):(Math.floor(q)||'')+'½'};
 const upd=r=>r.u||r.ts||0;
 
 function load(){try{const s=JSON.parse(localStorage.getItem(LS)||'null');if(s){if(s.menu&&s.menu.items)menu=s.menu;sales=s.sales||{};menuU=s.menuU||0;lastSync=s.lastSync||0;hintOff=!!s.hintOff;freePf=!!s.freePf;myDev=s.dev||'';imported=new Set(s.imported||[]);pending=new Set(s.pending||[])}}catch(e){}}
@@ -351,7 +353,7 @@ function renderCart(){
   ?`<button class="pft ${freePf?'on':''}" data-pft aria-pressed="${freePf}"><span>Pfand kassieren</span><b>${freePf?'Ja':'Nein'}</b></button>
     ${freePf&&c.pf?`<div class="pfcash"><span>Jetzt bar kassieren (Pfand)</span><span class="num">${fmt(c.pf)}</span></div>`:''}
     <div class="total"><span class="hand">Wert</span><span class="num">${fmt(c.sub)}</span></div>
-    <p class="who-t">Wer gibt aus?</p><div class="who">${people().map(n=>`<button data-giver="${esc(n)}" ${c.empty?'disabled':''}>${esc(n)}</button>`).join('')}</div>${undo}`
+    <p class="who-t">Wer gibt aus?</p><div class="who">${people().map(n=>`<button data-giver="${esc(n)}" ${c.empty?'disabled':''}>${esc(n)}</button>`).join('')}<button class="sam" data-samco ${c.empty?'disabled':''}>Samco<small>Sarah und Marco teilen sich den Betrag</small></button></div>${undo}`
   :`<div class="row"><span>Waren</span><span class="num">${fmt(c.sub)}</span></div><div class="row"><span>Pfand (netto)</span><span class="num">${fmt(c.pf)}</span></div>
   <div class="total ${neg?'neg':''}"><span class="hand">${neg?'Auszahlen':'Summe'}</span><span class="num">${fmt(neg?-c.total:c.total)}</span></div>
   <div class="pay"><button class="bar" data-pay="bar" ${c.empty?'disabled':''}>Bar</button><button class="karte" data-pay="karte" ${c.empty||neg?'disabled':''}>Karte</button></div>${undo}`;
@@ -371,6 +373,11 @@ function after(rec,msg){save();flush();resetCart();closeModal();renderKasse();se
   toast(msg,()=>{voidSale(rec.id);toast('Storniert')});}
 function finalize(pay){const c=calc();if(c.empty)return;const rec=newRec(c,pay);store(rec);after(rec,`${pay==='bar'?'Bar':'Karte'} · ${fmt(rec.total)} gebucht`)}
 function giveOut(name){const c=calc();if(c.empty)return;const rec=newRec(c,'frei',{by:name,paid:'',total:c.sub});store(rec);after(rec,`${name} gibt aus · ${fmt(c.sub)}`+(c.pf?` · ${fmt(c.pf)} Pfand bar kassiert`:''))}
+function giveSamco(){const c=calc();if(c.empty)return;const half=c.lines.map(l=>({...l,q:l.q/2})),sS=Math.round(c.sub/2),sM=c.sub-sS;
+  const a=newRec({...c,lines:half},'frei',{by:'Sarah',paid:'',sub:sS,total:sS,sam:1});
+  const b=newRec({...c,lines:half.map(l=>({...l})),pfOut:zero(),pfIn:zero(),pf:0},'frei',{by:'Marco',paid:'',sub:sM,total:sM,pf:0,sam:1});
+  b.id=a.id+'m';store(a);store(b);save();flush();resetCart();closeModal();renderKasse();setSync();
+  toast(`Samco gibt aus · Sarah ${fmt(sS)}, Marco ${fmt(sM)}`+(c.pf?` · ${fmt(c.pf)} Pfand bar kassiert`:''),()=>{voidSale(a.id);voidSale(b.id);toast('Storniert')});}
 function voidSale(id,on=true){const r=sales[id];if(!r)return;store({...clone(r),void:on,u:Date.now()});save();flush();setSync();renderAll()}
 
 async function flush(){
@@ -428,6 +435,7 @@ document.addEventListener('click',e=>{
   if('undo' in d){const c=cart();while(hist.length){const [t,k]=hist.pop();if(t==='l'&&c.l[k]){decL(k);break}if(t==='r'&&c.r[k]){decR(k);break}}renderKasse();return}
   if('clear' in d){resetCart();renderKasse();return}
   if(d.giver){giveOut(d.giver);return}
+  if('samco' in d){giveSamco();return}
   if('pft' in d){freePf=!freePf;save();renderKasse();return}
   if(d.pay==='karte'){openCard();return}
   if('cardok' in d){finalize('karte');return}
@@ -481,14 +489,15 @@ async function shareData(b){
   catch(e){$('imp').value=txt;$('imp').select();b.textContent='Text unten kopieren'}
 }
 const N=x=>{x=Number(x);return Number.isFinite(x)?Math.round(x):0};
+const NQ=x=>{x=Number(x);return Number.isFinite(x)?Math.round(x*2)/2:0};
 function cleanRec(r){if(!r||typeof r!=='object'||!r.id||!Array.isArray(r.lines))return null;
   const ts=N(r.ts)||Date.now(),pf=o=>{const x={};for(const k of PFK)x[k]=N(o&&o[k]);return x};
   const pay=r.pay==='karte'?'karte':r.pay==='frei'?'frei':'bar';
   const o={id:String(r.id).slice(0,40),ts,u:N(r.u)||ts,day:/^\d{4}-\d\d-\d\d$/.test(r.day)?r.day:dayKey(ts),
-    lines:r.lines.map(l=>({id:String(l&&l.id||''),n:String(l&&l.n||'?').slice(0,80),cat:String(l&&l.cat||''),p:N(l&&l.p),q:N(l&&l.q)})),
+    lines:r.lines.map(l=>({id:String(l&&l.id||''),n:String(l&&l.n||'?').slice(0,80),cat:String(l&&l.cat||''),p:N(l&&l.p),q:NQ(l&&l.q)})),
     pfOut:pf(r.pfOut),pfIn:pf(r.pfIn),sub:N(r.sub),pf:N(r.pf),total:N(r.total),pay,void:!!r.void};
   if(r.dev)o.dev=String(r.dev).slice(0,12);
-  if(pay==='frei'){o.by=String(r.by||'?').slice(0,30);o.paid=r.paid==='karte'?'karte':r.paid==='bar'?'bar':'';o.paidTs=N(r.paidTs)}
+  if(pay==='frei'){o.by=String(r.by||'?').slice(0,30);o.paid=r.paid==='karte'?'karte':r.paid==='bar'?'bar':'';o.paidTs=N(r.paidTs);if(r.sam)o.sam=1}
   return o;}
 function mergeIn(txt){let o;try{o=JSON.parse(txt)}catch(e){toast('Das sind keine Kassen-Daten');return}
   if(!o||o.app!=='wmkasse'||!o.sales||typeof o.sales!=='object'){toast('Das sind keine Kassen-Daten');return}
@@ -514,9 +523,9 @@ function reportData(){const {s,recs}=stats(),fb=freeBy(),hl=h=>String(h).padStar
   const its=Object.values(s.items).sort((a,b)=>ord(a.n)-ord(b.n));
   return{P,title:dayF==='all'?'Alle Markttage':dayLbl(dayF),created:new Date().toLocaleString('de-DE',{dateStyle:'medium',timeStyle:'short'})+' Uhr',
     kpis:[['Umsatz (ohne Pfand)',P(s.sub)],['Anzahl Verkäufe',String(s.n)],['Bar eingenommen',P(s.bar)],['Karte',P(s.karte)],['Ausgegeben, noch offen',P(s.open)],['Pfand im Umlauf',P(pfNet)]],
-    items:its.map(i=>[i.n,String(i.q),i.f?String(i.f):'',P(i.u)]),tot:['Summe',String(its.reduce((a,i)=>a+i.q,0)),(t=>t?String(t):'')(its.reduce((a,i)=>a+i.f,0)),P(its.reduce((a,i)=>a+i.u,0))],
+    items:its.map(i=>[i.n,qf(i.q),i.f?qf(i.f):'',P(i.u)]),tot:['Summe',qf(its.reduce((a,i)=>a+i.q,0)),(t=>t?qf(t):'')(its.reduce((a,i)=>a+i.f,0)),P(its.reduce((a,i)=>a+i.u,0))],
     pf:PFK.map(k=>[menu.pfand[k].n,String(s.out[k]),String(s.in[k]),String(s.out[k]-s.in[k]),P((s.out[k]-s.in[k])*menu.pfand[k].v)]),
-    persons:fb.map(p=>[p.n,P(p.open),P(p.paid),Object.entries(p.items).map(([n,q])=>q+'× '+n).join(', ')]),
+    persons:fb.map(p=>[p.n,P(p.open),P(p.paid),Object.entries(p.items).map(([n,q])=>qf(q)+'× '+n).join(', ')]),
     hours:hoursOf(recs).map(x=>[hl(x.h)+'–'+hl(x.h+1)+' Uhr',String(x.n),P(x.sub),x.free?P(x.free):''])};}
 function makePdf(b){const d=reportData();
   const t=(head,rows,rcols,foot)=>`<table><thead><tr>${head.map((h,i)=>`<th class="${rcols.includes(i)?'r':''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="${rcols.includes(i)?'r':''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody>${foot?`<tfoot><tr>${foot.map((c,i)=>`<td class="${rcols.includes(i)?'r':''}">${esc(c)}</td>`).join('')}</tr></tfoot>`:''}</table>`;
@@ -576,13 +585,13 @@ function renderStats(){
   const hrs=Object.values(H).sort((a,b)=>a.h-b.h),hmax=Math.max(1,...hrs.map(x=>x.sub)),best=hrs.reduce((m,x)=>x.sub>(m?m.sub:-1)?x:m,null);
   const hl=h=>String(h).padStart(2,'0');
   const hourCard=hrs.length?`<div class="card"><h2>Pro Stunde</h2><p class="note">${dayF==='all'?'Alle Tage zusammengezählt.':'Nur '+esc(dayLbl(dayF))+'.'} Stärkste Stunde: <b>${hl(best.h)}–${hl(best.h+1)} Uhr</b> mit <b class="num">${fmt(best.sub)}</b>.</p>
-  <div class="hours">${hrs.map(x=>{const top=Object.entries(x.items).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>`${q}× ${esc(n)}`).join(', ');
+  <div class="hours">${hrs.map(x=>{const top=Object.entries(x.items).sort((a,b)=>b[1]-a[1]).slice(0,3).map(([n,q])=>`${qf(q)}× ${esc(n)}`).join(', ');
     return`<div class="hr"><span class="ht num">${hl(x.h)}–${hl(x.h+1)}</span><div class="hb"><div class="hbar" style="width:${(x.sub/hmax*100).toFixed(1)}%"></div><span class="hv num">${fmt(x.sub)} · ${x.n} ${x.n===1?'Verkauf':'Verkäufe'}${x.free?` · ${fmt(x.free)} ausgegeben`:''}</span><span class="htop">${top}</span></div></div>`}).join('')}</div></div>`:'';
-  const payTxt=r=>isFree(r)?`${esc(r.by)} gibt aus${r.paid?' · bezahlt':''}`:(r.pay==='bar'?'Bar':'Karte');
+  const payTxt=r=>isFree(r)?`${esc(r.by)} gibt aus${r.sam?' (Samco)':''}${r.paid?' · bezahlt':''}`:(r.pay==='bar'?'Bar':'Karte');
   const list=recs.sort((a,b)=>b.ts-a.ts).slice(0,40).map(r=>{const t=new Date(r.ts).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
-    const what=[...r.lines.map(l=>`${l.q}× ${l.n}`),...PFK.filter(k=>r.pfIn?.[k]).map(k=>`${r.pfIn[k]}× ${menu.pfand[k].n} zurück`)].join(', ');
+    const what=[...r.lines.map(l=>`${qf(l.q)}× ${l.n}`),...PFK.filter(k=>r.pfIn?.[k]).map(k=>`${r.pfIn[k]}× ${menu.pfand[k].n} zurück`)].join(', ');
     const im=imported.has(r.id);return`<tr class="${r.void?'void':''}${isFree(r)?' fr':''}${im?' imp':''}"><td class="num">${t}</td><td>${esc(what)}</td><td class="r num">${fmt(isFree(r)?r.sub:r.total)}${isFree(r)&&r.pf?`<small class="fq">+ ${fmt(r.pf)} Pfand bar</small>`:''}</td><td>${payTxt(r)}${im?' <span class="ib">importiert</span>':''}</td><td class="r"><button class="btn sm" data-void="${esc(r.id)}">${r.void?'Wiederherstellen':'Storno'}</button></td></tr>`}).join('');
-  const persons=fb.map(p=>{const it=Object.entries(p.items).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`${q}× ${esc(n)}`).join(', ');
+  const persons=fb.map(p=>{const it=Object.entries(p.items).sort((a,b)=>b[1]-a[1]).map(([n,q])=>`${qf(q)}× ${esc(n)}`).join(', ');
     const bt=how=>{const on=arm===p.n+'|'+how;return`<button class="btn sm ${on?'armed':''}" data-settle="${esc(p.n)}" data-how="${how}" ${p.open?'':'disabled'}>${on?`Sicher? ${fmt(p.open)} ${how==='bar'?'bar':'Karte'}`:(how==='bar'?'Bezahlt bar':'Bezahlt Karte')}</button>`};
     return`<div class="person"><div class="ph"><b>${esc(p.n)}</b><span class="num">${fmt(p.open)}</span></div><p class="pi">${it||(p.paid?'Alles bezahlt.':'Noch nichts ausgegeben.')}</p>${p.paid?`<p class="pp">Schon bezahlt: <span class="num">${fmt(p.paid)}</span></p>`:''}<div class="tools">${bt('bar')}${bt('karte')}</div></div>`}).join('');
   getPdf().catch(()=>{});
@@ -594,7 +603,7 @@ function renderStats(){
   <div class="kpi"><span>Pfand im Umlauf</span><b class="num">${fmt(pfNet)}</b><small>${s.out.tasse-s.in.tasse} Tassen noch draußen</small></div></div>
   ${hourCard}
   <div class="card"><h2>Ausgegeben – Abrechnung</h2><p class="note">Über alle Markttage. Offen gesamt: <b class="num">${fmt(openAll)}</b>. Wenn jemand zahlt, auf „Bezahlt“ tippen und zur Sicherheit noch einmal bestätigen. Der Betrag zählt dann zum Umsatz.</p><div class="persons">${persons}</div></div>
-  <div class="cols"><div class="card"><h2>Verkauft</h2>${its.length?`<table class="stack"><thead><tr><th>Artikel</th><th class="r">Menge</th><th class="r">Umsatz</th></tr></thead><tbody>${its.map(i=>`<tr><td>${esc(i.n)}<div class="barw" style="width:${(i.q/max*100).toFixed(1)}%"></div></td><td class="r num"><b>${i.q}</b>${i.f?`<small class="fq">davon ${i.f} ausgegeben</small>`:''}</td><td class="r num">${fmt(i.u)}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">Noch nichts verkauft.</p>'}</div>
+  <div class="cols"><div class="card"><h2>Verkauft</h2>${its.length?`<table class="stack"><thead><tr><th>Artikel</th><th class="r">Menge</th><th class="r">Umsatz</th></tr></thead><tbody>${its.map(i=>`<tr><td>${esc(i.n)}<div class="barw" style="width:${(i.q/max*100).toFixed(1)}%"></div></td><td class="r num"><b>${qf(i.q)}</b>${i.f?`<small class="fq">davon ${qf(i.f)} ausgegeben</small>`:''}</td><td class="r num">${fmt(i.u)}</td></tr>`).join('')}</tbody></table>`:'<p class="empty">Noch nichts verkauft.</p>'}</div>
   <div><div class="card"><h2>Pfand</h2><table class="stack"><thead><tr><th></th><th class="r">Raus</th><th class="r">Zurück</th><th class="r">Offen</th><th class="r">Betrag</th></tr></thead><tbody>${pfRows}</tbody></table></div>
   <div class="card"><h2>Geräte abgleichen</h2><p class="note">Auf einem Gerät „Daten senden“ (AirDrop, Nachricht oder in Dateien sichern), auf dem anderen „Datei laden“. Buchungen werden zusammengeführt, nichts wird doppelt gezählt. Danach in die andere Richtung wiederholen, wenn beide alles haben sollen.</p>
   <div class="tools"><button class="btn" style="background:var(--pine);color:#fff" data-share>Daten senden</button><label class="btn">Datei laden<input type="file" id="impf" class="vh" accept=".json,application/json,text/plain"></label></div>
@@ -605,7 +614,7 @@ function renderStats(){
 }
 function copyCsv(b){
   const {s}=stats();const rows=[['Artikel','Menge','davon ausgegeben (offen)','Umsatz']];
-  for(const i of Object.values(s.items).sort((a,b)=>b.q-a.q))rows.push([i.n,i.q,i.f,(i.u/100).toFixed(2).replace('.',',')]);
+  for(const i of Object.values(s.items).sort((a,b)=>b.q-a.q))rows.push([i.n,String(i.q).replace('.',','),String(i.f).replace('.',','),(i.u/100).toFixed(2).replace('.',',')]);
   rows.push([],['Person','Offen','Bezahlt']);for(const p of freeBy())rows.push([p.n,(p.open/100).toFixed(2).replace('.',','),(p.paid/100).toFixed(2).replace('.',',')]);
   rows.push([],['Zeit','Tag','Zahlung','Waren','Pfand','Gesamt','Storniert','Inhalt']);
   for(const r of Object.values(sales).sort((a,b)=>a.ts-b.ts))rows.push([new Date(r.ts).toLocaleString('de-DE'),r.day,isFree(r)?'ausgegeben: '+r.by+(r.paid?' (bezahlt '+r.paid+')':' (offen)'):r.pay,(r.sub/100).toFixed(2).replace('.',','),(r.pf/100).toFixed(2).replace('.',','),(r.total/100).toFixed(2).replace('.',','),r.void?'ja':'',r.lines.map(l=>l.q+'x '+l.n).join(' / ')]);
